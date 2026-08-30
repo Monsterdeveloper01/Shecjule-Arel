@@ -6,6 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Schedule') — Academic Planner</title>
     <meta name="description" content="Schedule — Personal academic planner for Telkom University students">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ef4444">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Schedule">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -99,6 +104,13 @@
                 </button>
                 <h1 class="page-title">@yield('page-title', 'Dashboard')</h1>
                 <div class="top-bar-right">
+                    <button class="topbar-btn" id="notificationBtn" title="Pengaturan Notifikasi HP" aria-label="Notifikasi">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="notification-indicator" id="notifIndicator" style="display: none;"></span>
+                    </button>
                     <span class="current-date">{{ now()->translatedFormat('l, d F Y') }}</span>
                 </div>
             </header>

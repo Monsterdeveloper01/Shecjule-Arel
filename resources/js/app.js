@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initCalendar();
     initPinpad();
     initDashboardToggles();
+    initPushNotifications();
 });
 
 // ===== Global State for Multi-File Upload Queue =====
@@ -1306,3 +1307,194 @@ function formatDatetimeLocal(dateStr) {
         return '';
     }
 }
+
+// ===== WEB PUSH & NOTIFICATIONS =====
+let swRegistration = null;
+let isPushSubscribed = false;
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+async function initPushNotifications() {
+    const notifBtn = document.getElementById('notificationBtn');
+    if (!notifBtn) return;
+
+    notifBtn.addEventListener('click', openNotificationModal);
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return;
+    }
+
+    try {
+        swRegistration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await swRegistration.pushManager.getSubscription();
+        isPushSubscribed = !(subscription === null);
+        updateNotificationUI();
+    } catch (err) {
+        console.warn('Service worker registration failed:', err);
+    }
+}
+
+function updateNotificationUI() {
+    const btn = document.getElementById('notificationBtn');
+    const indicator = document.getElementById('notifIndicator');
+    if (!btn) return;
+
+    if (isPushSubscribed) {
+        btn.classList.add('active');
+        if (indicator) indicator.style.display = 'block';
+    } else {
+        btn.classList.remove('active');
+        if (indicator) indicator.style.display = 'none';
+    }
+}
+
+window.openNotificationModal = async function() {
+    const permission = ('Notification' in window) ? Notification.permission : 'unsupported';
+    let subStatusText = isPushSubscribed ? '🟢 Notifikasi Aktif' : '⚪ Notifikasi Belum Aktif';
+    let permissionText = permission === 'granted' ? 'Diizinkan' : (permission === 'denied' ? 'Diblokir oleh Browser' : 'Belum Diatur');
+
+    const html = `
+        <div style="text-align: center; padding: 8px 0 16px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 24px;">
+                🔔
+            </div>
+            <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Pengingat Deadline & Jadwal HP</h3>
+            <p style="font-size: 13px; color: var(--text-tertiary); line-height: 1.6; max-width: 400px; margin: 0 auto;">
+                Aktifkan notifikasi Web Push untuk menerima pemberitahuan otomatis ke HP saat ada tugas yang mendekati deadline atau jadwal kegiatan kuliah.
+            </p>
+        </div>
+
+        <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 16px; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--text-secondary);">Status Perangkat Ini:</span>
+                <span style="font-weight: 700;" id="modalNotifStatus">${subStatusText}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-secondary);">Izin Browser:</span>
+                <span style="font-weight: 600; color: ${permission === 'granted' ? '#4ade80' : '#f87171'};">${permissionText}</span>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+            ${!isPushSubscribed ? `
+                <button type="button" class="btn-primary btn-full" id="btnTogglePush" onclick="enablePushNotifications()">
+                    🔔 Aktifkan Notifikasi di Perangkat Ini
+                </button>
+            ` : `
+                <button type="button" class="btn-secondary btn-full" id="btnTogglePush" onclick="disablePushNotifications()">
+                    🔕 Nonaktifkan Notifikasi di Perangkat Ini
+                </button>
+            `}
+            <button type="button" class="btn-secondary btn-full" onclick="sendTestPushNotification()">
+                ⚡ Kirim Notifikasi Uji Coba Sekarang
+            </button>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 14px; font-size: 12px; color: var(--text-tertiary); line-height: 1.5;">
+            <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">💡 Tips untuk HP (Android / iOS):</div>
+            <div>• <strong>Android</strong>: Buka di Chrome → Klik titik tiga ⋮ → "Tambahkan ke Layar Utama" / "Install App".</div>
+            <div>• <strong>iPhone / iOS</strong>: Buka di Safari → Klik tombol Share 📤 → "Add to Home Screen" → Buka aplikasi dari layar utama lalu aktifkan notifikasi.</div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 16px;">
+            <button type="button" class="btn-secondary" onclick="closeModal()">Tutup</button>
+        </div>
+    `;
+
+    openModal('Pengaturan Notifikasi', html);
+};
+
+window.enablePushNotifications = async function() {
+    const btn = document.getElementById('btnTogglePush');
+    if (btn) btn.disabled = true;
+
+    try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert('Browser ini tidak mendukung Web Push Notifications.');
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('Izin notifikasi tidak diberikan. Silakan izinkan notifikasi di pengaturan browser kamu.');
+            return;
+        }
+
+        const res = await fetch('/push/vapid-public-key');
+        const data = await res.json();
+        const publicKey = data.publicKey;
+
+        if (!publicKey) {
+            alert('VAPID Public Key belum disiapkan di server.');
+            return;
+        }
+
+        const reg = await navigator.serviceWorker.ready;
+        const convertedKey = urlBase64ToUint8Array(publicKey);
+
+        const subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey,
+        });
+
+        const subJson = subscription.toJSON();
+
+        const saveRes = await apiRequest('/push/subscribe', 'POST', {
+            endpoint: subscription.endpoint,
+            keys: subJson.keys,
+            contentEncoding: (PushManager.supportedContentEncodings || ['aesgcm'])[0],
+        });
+
+        if (saveRes.success) {
+            isPushSubscribed = true;
+            updateNotificationUI();
+            alert('🎉 Notifikasi berhasil diaktifkan untuk perangkat ini!');
+            closeModal();
+        }
+    } catch (err) {
+        console.error('Error enabling push:', err);
+        alert('Gagal mengaktifkan notifikasi: ' + err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+window.disablePushNotifications = async function() {
+    if (!swRegistration) return;
+
+    try {
+        const subscription = await swRegistration.pushManager.getSubscription();
+        if (subscription) {
+            await apiRequest('/push/unsubscribe', 'POST', {
+                endpoint: subscription.endpoint,
+            });
+            await subscription.unsubscribe();
+        }
+
+        isPushSubscribed = false;
+        updateNotificationUI();
+        alert('Notifikasi push telah dinonaktifkan untuk perangkat ini.');
+        closeModal();
+    } catch (err) {
+        console.error('Error unsubscribing:', err);
+    }
+};
+
+window.sendTestPushNotification = async function() {
+    try {
+        const res = await apiRequest('/push/test', 'POST');
+        alert(res.message);
+    } catch (err) {
+        alert('Gagal mengirim notifikasi tes.');
+    }
+};
+
