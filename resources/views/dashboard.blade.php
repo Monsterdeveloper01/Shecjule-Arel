@@ -100,11 +100,25 @@
                 </h3>
                 <div class="task-list-mini">
                     @foreach($overdueTasks->take(3) as $task)
-                    <div class="task-item-mini task-overdue">
+                    <div class="task-item-mini task-overdue" id="task-{{ $task->id }}">
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
                             <span class="task-mini-title">{{ $task->title }}</span>
                             <span class="task-mini-deadline">{{ $task->deadline->diffForHumans() }}</span>
+                        </div>
+                        <div class="mini-actions">
+                            <button class="action-btn-sm" onclick="editTask({{ $task->id }}, {{ json_encode($task) }})" title="Edit Tugas" aria-label="Edit">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn-sm action-delete" onclick="deleteTask({{ $task->id }})" title="Hapus Tugas" aria-label="Hapus">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     @endforeach
@@ -124,7 +138,7 @@
                 @if($todayTasks->count() > 0)
                 <div class="task-list-mini">
                     @foreach($todayTasks as $task)
-                    <div class="task-item-mini">
+                    <div class="task-item-mini" id="task-{{ $task->id }}">
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
                             <span class="task-mini-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</span>
@@ -137,13 +151,27 @@
                                 @endif
                             </div>
                         </div>
-                        <button class="task-toggle-btn" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}" aria-label="Toggle status">
-                            @if($task->status === 'completed')
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                            @else
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-                            @endif
-                        </button>
+                        <div class="mini-actions">
+                            <button class="task-toggle-btn" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}" title="Ubah Status" aria-label="Toggle status">
+                                @if($task->status === 'completed')
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                @else
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
+                                @endif
+                            </button>
+                            <button class="action-btn-sm" onclick="editTask({{ $task->id }}, {{ json_encode($task) }})" title="Edit Tugas" aria-label="Edit">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn-sm action-delete" onclick="deleteTask({{ $task->id }})" title="Hapus Tugas" aria-label="Hapus">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     @endforeach
                 </div>
@@ -165,7 +193,7 @@
                 @if($todayEvents->count() > 0)
                 <div class="event-list-mini">
                     @foreach($todayEvents as $event)
-                    <div class="event-item-mini">
+                    <div class="event-item-mini" id="event-{{ $event->id }}">
                         <span class="event-category-dot category-{{ $event->category }}"></span>
                         <div class="event-mini-info">
                             <span class="event-mini-title">{{ $event->title }}</span>
@@ -175,6 +203,20 @@
                                 <a href="{{ $event->file_url }}" target="_blank" title="{{ $event->file_name }}" style="font-size: 11px; text-decoration: none; color: var(--text-secondary);">📎 File</a>
                                 @endif
                             </div>
+                        </div>
+                        <div class="mini-actions">
+                            <button class="action-btn-sm" onclick="editEvent({{ $event->id }}, {{ json_encode($event) }})" title="Edit Acara" aria-label="Edit">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn-sm action-delete" onclick="deleteEvent({{ $event->id }})" title="Hapus Acara" aria-label="Hapus">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     @endforeach
@@ -196,11 +238,25 @@
                 </h3>
                 <div class="task-list-mini">
                     @foreach($upcomingTasks as $task)
-                    <div class="task-item-mini">
+                    <div class="task-item-mini" id="task-{{ $task->id }}">
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
                             <span class="task-mini-title">{{ $task->title }}</span>
                             <span class="task-mini-deadline">{{ $task->deadline->diffForHumans() }}</span>
+                        </div>
+                        <div class="mini-actions">
+                            <button class="action-btn-sm" onclick="editTask({{ $task->id }}, {{ json_encode($task) }})" title="Edit Tugas" aria-label="Edit">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn-sm action-delete" onclick="deleteTask({{ $task->id }})" title="Hapus Tugas" aria-label="Hapus">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     @endforeach

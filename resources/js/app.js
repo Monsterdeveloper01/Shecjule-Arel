@@ -611,8 +611,103 @@ window.deleteEvent = async function(eventId) {
     }
 };
 
-// ===== CALENDAR =====
+// ===== CALENDAR & HOVER TOOLTIP =====
 let currentYear, currentMonth, calendarData = {};
+
+function getOrCreateTooltip() {
+    let tooltip = document.getElementById('calTooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'calTooltip';
+        tooltip.className = 'cal-tooltip';
+        document.body.appendChild(tooltip);
+    }
+    return tooltip;
+}
+
+function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
+    if (!hasTasks && !hasEvents && !hasNotes) return;
+
+    const tooltip = getOrCreateTooltip();
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    const tasks = calendarData.tasks?.[dateStr] || [];
+    const events = calendarData.events?.[dateStr] || [];
+    const notes = calendarData.notes?.[dateStr] || [];
+
+    let html = `<div class="cal-tooltip-date">${day} ${monthNames[currentMonth]} ${currentYear}</div>`;
+    html += '<div class="cal-tooltip-list">';
+
+    if (tasks.length > 0) {
+        tasks.forEach(t => {
+            const pDot = t.priority === 'urgent' ? '🔴' : (t.priority === 'high' ? '🟠' : (t.priority === 'medium' ? '🟡' : '🟢'));
+            const statusIcon = t.status === 'completed' ? '✓ ' : '';
+            const fileIcon = t.file_path ? ' 📎' : '';
+            html += `<div class="cal-tooltip-row">
+                <span>${pDot}</span>
+                <span class="tooltip-title ${t.status === 'completed' ? 'completed' : ''}">${statusIcon}${escapeHtml(t.title)}${fileIcon}</span>
+                ${t.subject ? `<span class="tooltip-meta">${escapeHtml(t.subject)}</span>` : ''}
+            </div>`;
+        });
+    }
+
+    if (events.length > 0) {
+        events.forEach(ev => {
+            const catIcon = ev.category === 'kuliah' ? '📚' : (ev.category === 'ujian' ? '📝' : (ev.category === 'seminar' ? '🎤' : (ev.category === 'organisasi' ? '👥' : '🏠')));
+            const fileIcon = ev.file_path ? ' 📎' : '';
+            html += `<div class="cal-tooltip-row">
+                <span>${catIcon}</span>
+                <span class="tooltip-title">${escapeHtml(ev.title)}${fileIcon}</span>
+                ${ev.location ? `<span class="tooltip-meta">${escapeHtml(ev.location)}</span>` : ''}
+            </div>`;
+        });
+    }
+
+    if (notes.length > 0) {
+        notes.forEach(n => {
+            const pinIcon = n.is_pinned ? '📌' : '🗒️';
+            const fileIcon = n.file_path ? ' 📎' : '';
+            html += `<div class="cal-tooltip-row">
+                <span>${pinIcon}</span>
+                <span class="tooltip-title">${escapeHtml(n.title)}${fileIcon}</span>
+            </div>`;
+        });
+    }
+
+    html += '</div>';
+    tooltip.innerHTML = html;
+    positionCalTooltip(e);
+    tooltip.classList.add('show');
+}
+
+function positionCalTooltip(e) {
+    const tooltip = document.getElementById('calTooltip');
+    if (!tooltip || !tooltip.classList.contains('show')) return;
+
+    const xOffset = 16;
+    const yOffset = 16;
+    let x = e.clientX + xOffset;
+    let y = e.clientY + yOffset;
+
+    const tooltipRect = tooltip.getBoundingClientRect();
+    if (x + tooltipRect.width > window.innerWidth - 10) {
+        x = e.clientX - tooltipRect.width - xOffset;
+    }
+    if (y + tooltipRect.height > window.innerHeight - 10) {
+        y = e.clientY - tooltipRect.height - yOffset;
+    }
+
+    tooltip.style.left = `${Math.max(10, x)}px`;
+    tooltip.style.top = `${Math.max(10, y)}px`;
+}
+
+function hideCalTooltip() {
+    const tooltip = document.getElementById('calTooltip');
+    if (tooltip) {
+        tooltip.classList.remove('show');
+    }
+}
 
 function initCalendar() {
     const grid = document.getElementById('calendarGrid');
@@ -645,8 +740,10 @@ async function loadCalendar() {
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-    document.getElementById('calMonthTitle').textContent =
-        `${monthNames[currentMonth]} ${currentYear}`;
+    const monthTitle = document.getElementById('calMonthTitle');
+    if (monthTitle) {
+        monthTitle.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+    }
 
     try {
         const res = await fetch(`/calendar-data?year=${currentYear}&month=${currentMonth + 1}`, {
@@ -662,6 +759,7 @@ async function loadCalendar() {
 
 function renderCalendar() {
     const grid = document.getElementById('calendarGrid');
+    if (!grid) return;
     grid.innerHTML = '';
 
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
@@ -683,9 +781,9 @@ function renderCalendar() {
                         today.getMonth() === currentMonth &&
                         today.getDate() === d;
 
-        const hasTasks = calendarData.tasks && calendarData.tasks[dateStr];
-        const hasEvents = calendarData.events && calendarData.events[dateStr];
-        const hasNotes = calendarData.notes && calendarData.notes[dateStr];
+        const hasTasks = calendarData.tasks && calendarData.tasks[dateStr] && calendarData.tasks[dateStr].length > 0;
+        const hasEvents = calendarData.events && calendarData.events[dateStr] && calendarData.events[dateStr].length > 0;
+        const hasNotes = calendarData.notes && calendarData.notes[dateStr] && calendarData.notes[dateStr].length > 0;
 
         const el = createCalDay(d, false, isToday, dateStr, hasTasks, hasEvents, hasNotes);
         grid.appendChild(el);
@@ -720,7 +818,14 @@ function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', hasTasks
     }
 
     if (dateStr && !isOtherMonth) {
-        el.addEventListener('click', () => openDayDetail(dateStr, day));
+        el.addEventListener('click', () => {
+            hideCalTooltip();
+            openDayDetail(dateStr, day);
+        });
+
+        el.addEventListener('mouseenter', (e) => showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes));
+        el.addEventListener('mousemove', (e) => positionCalTooltip(e));
+        el.addEventListener('mouseleave', () => hideCalTooltip());
     }
 
     return el;
@@ -743,8 +848,25 @@ function openDayDetail(dateStr, day) {
     let html = '';
 
     if (tasks.length === 0 && events.length === 0 && notes.length === 0) {
-        html = '<div class="day-detail-empty">Tidak ada aktivitas di hari ini</div>';
+        html = `
+            <div class="day-detail-empty">
+                <p style="margin-bottom: 12px;">Tidak ada aktivitas di hari ini</p>
+                <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="openTaskModalForDate('${dateStr}')">+ Tugas</button>
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="openEventModalForDate('${dateStr}')">+ Acara</button>
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="openNoteModalForDate('${dateStr}')">+ Catatan</button>
+                </div>
+            </div>
+        `;
     } else {
+        html += `
+            <div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;">
+                <button class="btn-primary" style="padding: 5px 10px; font-size: 11px;" onclick="openTaskModalForDate('${dateStr}')">+ Tugas</button>
+                <button class="btn-secondary" style="padding: 5px 10px; font-size: 11px;" onclick="openEventModalForDate('${dateStr}')">+ Acara</button>
+                <button class="btn-secondary" style="padding: 5px 10px; font-size: 11px;" onclick="openNoteModalForDate('${dateStr}')">+ Catatan</button>
+            </div>
+        `;
+
         if (tasks.length > 0) {
             html += '<div class="day-detail-section"><h4>📋 Tugas (' + tasks.length + ')</h4>';
             tasks.forEach(t => {
@@ -753,17 +875,40 @@ function openDayDetail(dateStr, day) {
                         <a href="${t.file_url}" target="_blank" class="attachment-pill type-${t.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
                             <span class="att-icon">${getFileIcon(t.file_type)}</span>
                             <span class="att-name">${escapeHtml(t.file_name)}</span>
+                            <span class="att-size">(${t.formatted_file_size || ''})</span>
                         </a>
                     </div>` : '';
 
-                html += `<div class="day-detail-item" style="border-left-color: var(--priority-${t.priority})">
-                    <div class="item-title">${escapeHtml(t.title)}</div>
-                    <div class="item-meta">${t.subject || ''} · ${t.priority} · ${t.status}</div>
-                    ${fileHtml}
+                const taskJson = escapeHtml(JSON.stringify(t));
+
+                html += `<div class="day-detail-item" style="border-left-color: var(--priority-${t.priority})" id="task-${t.id}">
+                    <div class="day-detail-item-body">
+                        <div class="item-title ${t.status === 'completed' ? 'completed' : ''}">${escapeHtml(t.title)}</div>
+                        <div class="item-meta">${t.subject ? escapeHtml(t.subject) + ' · ' : ''}${t.priority} · ${t.status}</div>
+                        ${fileHtml}
+                    </div>
+                    <div class="mini-actions" style="opacity: 1;">
+                        <button class="action-btn-sm" onclick="toggleTaskStatus(${t.id})" title="Ubah Status">
+                            ${t.status === 'completed' ? '✓' : '○'}
+                        </button>
+                        <button class="action-btn-sm" onclick='editTask(${t.id}, ${taskJson})' title="Edit Tugas">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="action-btn-sm action-delete" onclick="deleteTask(${t.id})" title="Hapus Tugas">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>`;
             });
             html += '</div>';
         }
+
         if (events.length > 0) {
             html += '<div class="day-detail-section"><h4>🗓️ Acara (' + events.length + ')</h4>';
             events.forEach(e => {
@@ -775,14 +920,33 @@ function openDayDetail(dateStr, day) {
                         </a>
                     </div>` : '';
 
-                html += `<div class="day-detail-item" style="border-left-color: var(--cat-${e.category})">
-                    <div class="item-title">${escapeHtml(e.title)}</div>
-                    <div class="item-meta">${e.category}${e.location ? ' · ' + e.location : ''}</div>
-                    ${fileHtml}
+                const eventJson = escapeHtml(JSON.stringify(e));
+
+                html += `<div class="day-detail-item" style="border-left-color: var(--cat-${e.category})" id="event-${e.id}">
+                    <div class="day-detail-item-body">
+                        <div class="item-title">${escapeHtml(e.title)}</div>
+                        <div class="item-meta">${e.category}${e.location ? ' · ' + escapeHtml(e.location) : ''}</div>
+                        ${fileHtml}
+                    </div>
+                    <div class="mini-actions" style="opacity: 1;">
+                        <button class="action-btn-sm" onclick='editEvent(${e.id}, ${eventJson})' title="Edit Acara">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="action-btn-sm action-delete" onclick="deleteEvent(${e.id})" title="Hapus Acara">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>`;
             });
             html += '</div>';
         }
+
         if (notes.length > 0) {
             html += '<div class="day-detail-section"><h4>📌 Catatan (' + notes.length + ')</h4>';
             notes.forEach(n => {
@@ -794,9 +958,31 @@ function openDayDetail(dateStr, day) {
                         </a>
                     </div>` : '';
 
-                html += `<div class="day-detail-item" style="border-left-color: ${n.color || '#6366f1'}">
-                    <div class="item-title">${escapeHtml(n.title)}</div>
-                    ${fileHtml}
+                const noteJson = escapeHtml(JSON.stringify(n));
+
+                html += `<div class="day-detail-item" style="border-left-color: ${n.color || '#6366f1'}" id="note-${n.id}">
+                    <div class="day-detail-item-body">
+                        <div class="item-title">${escapeHtml(n.title)}</div>
+                        ${n.content ? `<div class="item-meta">${escapeHtml(n.content.substring(0, 80))}</div>` : ''}
+                        ${fileHtml}
+                    </div>
+                    <div class="mini-actions" style="opacity: 1;">
+                        <button class="action-btn-sm" onclick="togglePin(${n.id})" title="${n.is_pinned ? 'Unpin' : 'Pin'}">
+                            ${n.is_pinned ? '★' : '☆'}
+                        </button>
+                        <button class="action-btn-sm" onclick='editNote(${n.id}, ${noteJson})' title="Edit Catatan">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button class="action-btn-sm action-delete" onclick="deleteNote(${n.id})" title="Hapus Catatan">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>`;
             });
             html += '</div>';
@@ -807,6 +993,18 @@ function openDayDetail(dateStr, day) {
     document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
     panel.classList.add('open');
 }
+
+window.openTaskModalForDate = function(dateStr) {
+    openTaskModal({ deadline: `${dateStr}T23:59`, priority: 'medium', status: 'pending' });
+};
+
+window.openEventModalForDate = function(dateStr) {
+    openEventModal({ start_date: `${dateStr}T09:00`, category: 'kuliah' });
+};
+
+window.openNoteModalForDate = function(dateStr) {
+    openNoteModal({ note_date: dateStr });
+};
 
 // ===== PIN PAD =====
 function initPinpad() {

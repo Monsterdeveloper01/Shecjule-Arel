@@ -1803,6 +1803,119 @@ body {
     background: rgba(239, 68, 68, 0.2);
 }
 
+.mini-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    flex-shrink: 0;
+}
+.task-item-mini:hover .mini-actions,
+.event-item-mini:hover .mini-actions,
+.day-detail-item:hover .mini-actions {
+    opacity: 1;
+}
+
+.action-btn-sm {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+.action-btn-sm:hover {
+    color: var(--text-primary);
+    background: var(--bg-glass-hover);
+}
+.action-btn-sm.action-delete:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+/* Day Detail Action row */
+.day-detail-item {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.day-detail-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ===== CALENDAR HOVER TOOLTIP ===== */
+.cal-tooltip {
+    position: fixed;
+    z-index: 500;
+    background: rgba(17, 17, 24, 0.95);
+    border: 1px solid var(--border-hover);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    max-width: 300px;
+    min-width: 220px;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+
+.cal-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.cal-tooltip-date {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cal-tooltip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cal-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.cal-tooltip-row .tooltip-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    flex: 1;
+}
+
+.cal-tooltip-row .tooltip-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
     .dashboard-main {
