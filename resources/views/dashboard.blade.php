@@ -142,12 +142,14 @@
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
                             <span class="task-mini-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 @if($task->subject)
                                 <span class="task-mini-subject">{{ $task->subject }}</span>
                                 @endif
-                                @if($task->file_path)
-                                <a href="{{ $task->file_url }}" target="_blank" title="{{ $task->file_name }}" style="font-size: 11px; text-decoration: none; color: var(--text-secondary);">📎 File</a>
+                                @if($task->attachments && $task->attachments->count() > 0)
+                                    @foreach($task->attachments as $att)
+                                    <a href="{{ $att->file_url }}" target="_blank" title="{{ $att->file_name }} ({{ $att->formatted_file_size }})" style="font-size: 11px; text-decoration: none; color: var(--text-secondary); background: var(--bg-tertiary); padding: 1px 6px; border-radius: 10px;">📎 {{ Str::limit($att->file_name, 15) }}</a>
+                                    @endforeach
                                 @endif
                             </div>
                         </div>
@@ -197,10 +199,12 @@
                         <span class="event-category-dot category-{{ $event->category }}"></span>
                         <div class="event-mini-info">
                             <span class="event-mini-title">{{ $event->title }}</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <span class="event-mini-time">{{ $event->start_date->format('H:i') }}@if($event->location) · {{ $event->location }}@endif</span>
-                                @if($event->file_path)
-                                <a href="{{ $event->file_url }}" target="_blank" title="{{ $event->file_name }}" style="font-size: 11px; text-decoration: none; color: var(--text-secondary);">📎 File</a>
+                                @if($event->attachments && $event->attachments->count() > 0)
+                                    @foreach($event->attachments as $att)
+                                    <a href="{{ $att->file_url }}" target="_blank" title="{{ $att->file_name }} ({{ $att->formatted_file_size }})" style="font-size: 11px; text-decoration: none; color: var(--text-secondary); background: var(--bg-tertiary); padding: 1px 6px; border-radius: 10px;">📎 {{ Str::limit($att->file_name, 15) }}</a>
+                                    @endforeach
                                 @endif
                             </div>
                         </div>

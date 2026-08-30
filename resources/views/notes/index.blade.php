@@ -52,11 +52,12 @@
         @if($note->content)
         <p class="note-content">{{ Str::limit($note->content, 200) }}</p>
         @endif
-        @if($note->file_path)
-        <div style="margin-bottom: 12px;">
-            <a href="{{ $note->file_url }}" target="_blank" class="attachment-pill type-{{ $note->file_type ?? 'file' }}" title="{{ $note->file_name }} ({{ $note->formatted_file_size }})">
+        @if($note->attachments && $note->attachments->count() > 0)
+        <div class="attachments-wrap" style="margin-bottom: 12px;">
+            @foreach($note->attachments as $att)
+            <a href="{{ $att->file_url }}" target="_blank" class="attachment-pill type-{{ $att->file_type ?? 'file' }}" title="{{ $att->file_name }} ({{ $att->formatted_file_size }})">
                 <span class="att-icon">
-                    @switch($note->file_type)
+                    @switch($att->file_type)
                         @case('pdf') 📄 @break
                         @case('word') 📝 @break
                         @case('excel') 📊 @break
@@ -67,14 +68,15 @@
                         @default 📎
                     @endswitch
                 </span>
-                <span class="att-name">{{ $note->file_name }}</span>
-                <span class="att-size">({{ $note->formatted_file_size }})</span>
+                <span class="att-name">{{ $att->file_name }}</span>
+                <span class="att-size">({{ $att->formatted_file_size }})</span>
                 <svg class="att-dl" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
             </a>
+            @endforeach
         </div>
         @endif
         <div class="note-footer">

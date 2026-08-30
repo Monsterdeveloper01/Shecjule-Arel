@@ -26,7 +26,7 @@ class EventController extends Controller
     }
 
     /**
-     * Store a new event.
+     * Store a new event with multiple file attachments.
      */
     public function store(Request $request): JsonResponse
     {
@@ -37,25 +37,25 @@ class EventController extends Controller
             'category' => 'required|in:kuliah,ujian,seminar,organisasi,pribadi',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'file' => 'nullable|file|max:51200',
+            'files' => 'nullable|array',
+            'files.*' => 'file|max:51200',
         ]);
 
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $validated['file_path'] = $file->store('uploads/events', 'public');
-            $validated['file_name'] = $file->getClientOriginalName();
-            $validated['file_size'] = $file->getSize();
-        }
-
-        unset($validated['file']);
+        unset($validated['files']);
 
         $event = Event::create($validated);
+
+        if ($request->hasFile('files')) {
+            $event->saveAttachments($request->file('files'), 'uploads/events');
+        }
+
+        $event->load('attachments');
 
         return response()->json(['success' => true, 'event' => $event], 201);
     }
 
     /**
-     * Update an event.
+     * Update an event with attachment management.
      */
     public function update(Request $request, Event $event): JsonResponse
     {
@@ -66,26 +66,24 @@ class EventController extends Controller
             'category' => 'required|in:kuliah,ujian,seminar,organisasi,pribadi',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'file' => 'nullable|file|max:51200',
-            'remove_file' => 'nullable|in:true,false,1,0',
+            'files' => 'nullable|array',
+            'files.*' => 'file|max:51200',
+            'deleted_attachment_ids' => 'nullable|array',
+            'deleted_attachment_ids.*' => 'integer',
         ]);
 
-        if ($request->hasFile('file')) {
-            $event->deleteAttachmentFile();
-            $file = $request->file('file');
-            $validated['file_path'] = $file->store('uploads/events', 'public');
-            $validated['file_name'] = $file->getClientOriginalName();
-            $validated['file_size'] = $file->getSize();
-        } elseif ($request->boolean('remove_file')) {
-            $event->deleteAttachmentFile();
-            $validated['file_path'] = null;
-            $validated['file_name'] = null;
-            $validated['file_size'] = null;
+        if ($request->filled('deleted_attachment_ids')) {
+            $event->deleteAttachmentsByIds($request->input('deleted_attachment_ids'));
         }
 
-        unset($validated['file'], $validated['remove_file']);
+        if ($request->hasFile('files')) {
+            $event->saveAttachments($request->file('files'), 'uploads/events');
+        }
+
+        unset($validated['files'], $validated['deleted_attachment_ids']);
 
         $event->update($validated);
+        $event->load('attachments');
 
         return response()->json(['success' => true, 'event' => $event]);
     }

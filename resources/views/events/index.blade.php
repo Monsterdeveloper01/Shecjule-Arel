@@ -81,28 +81,32 @@
                     {{ $event->location }}
                 </span>
                 @endif
-                @if($event->file_path)
-                <a href="{{ $event->file_url }}" target="_blank" class="attachment-pill type-{{ $event->file_type ?? 'file' }}" title="{{ $event->file_name }} ({{ $event->formatted_file_size }})">
-                    <span class="att-icon">
-                        @switch($event->file_type)
-                            @case('pdf') 📄 @break
-                            @case('word') 📝 @break
-                            @case('excel') 📊 @break
-                            @case('powerpoint') 📽️ @break
-                            @case('image') 🖼️ @break
-                            @case('archive') 📦 @break
-                            @case('text') 📃 @break
-                            @default 📎
-                        @endswitch
-                    </span>
-                    <span class="att-name">{{ $event->file_name }}</span>
-                    <span class="att-size">({{ $event->formatted_file_size }})</span>
-                    <svg class="att-dl" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                </a>
+                @if($event->attachments && $event->attachments->count() > 0)
+                <div class="attachments-wrap">
+                    @foreach($event->attachments as $att)
+                    <a href="{{ $att->file_url }}" target="_blank" class="attachment-pill type-{{ $att->file_type ?? 'file' }}" title="{{ $att->file_name }} ({{ $att->formatted_file_size }})">
+                        <span class="att-icon">
+                            @switch($att->file_type)
+                                @case('pdf') 📄 @break
+                                @case('word') 📝 @break
+                                @case('excel') 📊 @break
+                                @case('powerpoint') 📽️ @break
+                                @case('image') 🖼️ @break
+                                @case('archive') 📦 @break
+                                @case('text') 📃 @break
+                                @default 📎
+                            @endswitch
+                        </span>
+                        <span class="att-name">{{ $att->file_name }}</span>
+                        <span class="att-size">({{ $att->formatted_file_size }})</span>
+                        <svg class="att-dl" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </a>
+                    @endforeach
+                </div>
                 @endif
             </div>
         </div>

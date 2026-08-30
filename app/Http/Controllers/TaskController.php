@@ -40,7 +40,7 @@ class TaskController extends Controller
     }
 
     /**
-     * Store a new task.
+     * Store a new task with optional multiple file attachments.
      */
     public function store(Request $request): JsonResponse
     {
@@ -51,25 +51,25 @@ class TaskController extends Controller
             'deadline' => 'required|date',
             'priority' => 'required|in:urgent,high,medium,low',
             'status' => 'nullable|in:pending,in_progress,completed',
-            'file' => 'nullable|file|max:51200',
+            'files' => 'nullable|array',
+            'files.*' => 'file|max:51200',
         ]);
 
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $validated['file_path'] = $file->store('uploads/tasks', 'public');
-            $validated['file_name'] = $file->getClientOriginalName();
-            $validated['file_size'] = $file->getSize();
-        }
-
-        unset($validated['file']);
+        unset($validated['files']);
 
         $task = Task::create($validated);
+
+        if ($request->hasFile('files')) {
+            $task->saveAttachments($request->file('files'), 'uploads/tasks');
+        }
+
+        $task->load('attachments');
 
         return response()->json(['success' => true, 'task' => $task], 201);
     }
 
     /**
-     * Update a task.
+     * Update a task, attach new files, and delete selected existing files.
      */
     public function update(Request $request, Task $task): JsonResponse
     {
@@ -80,26 +80,24 @@ class TaskController extends Controller
             'deadline' => 'required|date',
             'priority' => 'required|in:urgent,high,medium,low',
             'status' => 'nullable|in:pending,in_progress,completed',
-            'file' => 'nullable|file|max:51200',
-            'remove_file' => 'nullable|in:true,false,1,0',
+            'files' => 'nullable|array',
+            'files.*' => 'file|max:51200',
+            'deleted_attachment_ids' => 'nullable|array',
+            'deleted_attachment_ids.*' => 'integer',
         ]);
 
-        if ($request->hasFile('file')) {
-            $task->deleteAttachmentFile();
-            $file = $request->file('file');
-            $validated['file_path'] = $file->store('uploads/tasks', 'public');
-            $validated['file_name'] = $file->getClientOriginalName();
-            $validated['file_size'] = $file->getSize();
-        } elseif ($request->boolean('remove_file')) {
-            $task->deleteAttachmentFile();
-            $validated['file_path'] = null;
-            $validated['file_name'] = null;
-            $validated['file_size'] = null;
+        if ($request->filled('deleted_attachment_ids')) {
+            $task->deleteAttachmentsByIds($request->input('deleted_attachment_ids'));
         }
 
-        unset($validated['file'], $validated['remove_file']);
+        if ($request->hasFile('files')) {
+            $task->saveAttachments($request->file('files'), 'uploads/tasks');
+        }
+
+        unset($validated['files'], $validated['deleted_attachment_ids']);
 
         $task->update($validated);
+        $task->load('attachments');
 
         return response()->json(['success' => true, 'task' => $task]);
     }

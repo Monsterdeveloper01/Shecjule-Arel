@@ -22,7 +22,7 @@ class NoteController extends Controller
     }
 
     /**
-     * Store a new note.
+     * Store a new note with multiple file attachments.
      */
     public function store(Request $request): JsonResponse
     {
@@ -31,25 +31,25 @@ class NoteController extends Controller
             'content' => 'nullable|string',
             'color' => 'nullable|string|max:7',
             'note_date' => 'nullable|date',
-            'file' => 'nullable|file|max:51200',
+            'files' => 'nullable|array',
+            'files.*' => 'file|max:51200',
         ]);
 
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $validated['file_path'] = $file->store('uploads/notes', 'public');
-            $validated['file_name'] = $file->getClientOriginalName();
-            $validated['file_size'] = $file->getSize();
-        }
-
-        unset($validated['file']);
+        unset($validated['files']);
 
         $note = Note::create($validated);
+
+        if ($request->hasFile('files')) {
+            $note->saveAttachments($request->file('files'), 'uploads/notes');
+        }
+
+        $note->load('attachments');
 
         return response()->json(['success' => true, 'note' => $note], 201);
     }
 
     /**
-     * Update a note.
+     * Update a note with attachment management.
      */
     public function update(Request $request, Note $note): JsonResponse
     {
@@ -58,26 +58,24 @@ class NoteController extends Controller
             'content' => 'nullable|string',
             'color' => 'nullable|string|max:7',
             'note_date' => 'nullable|date',
-            'file' => 'nullable|file|max:51200',
-            'remove_file' => 'nullable|in:true,false,1,0',
+            'files' => 'nullable|array',
+            'files.*' => 'file|max:51200',
+            'deleted_attachment_ids' => 'nullable|array',
+            'deleted_attachment_ids.*' => 'integer',
         ]);
 
-        if ($request->hasFile('file')) {
-            $note->deleteAttachmentFile();
-            $file = $request->file('file');
-            $validated['file_path'] = $file->store('uploads/notes', 'public');
-            $validated['file_name'] = $file->getClientOriginalName();
-            $validated['file_size'] = $file->getSize();
-        } elseif ($request->boolean('remove_file')) {
-            $note->deleteAttachmentFile();
-            $validated['file_path'] = null;
-            $validated['file_name'] = null;
-            $validated['file_size'] = null;
+        if ($request->filled('deleted_attachment_ids')) {
+            $note->deleteAttachmentsByIds($request->input('deleted_attachment_ids'));
         }
 
-        unset($validated['file'], $validated['remove_file']);
+        if ($request->hasFile('files')) {
+            $note->saveAttachments($request->file('files'), 'uploads/notes');
+        }
+
+        unset($validated['files'], $validated['deleted_attachment_ids']);
 
         $note->update($validated);
+        $note->load('attachments');
 
         return response()->json(['success' => true, 'note' => $note]);
     }

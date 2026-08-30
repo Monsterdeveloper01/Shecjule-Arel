@@ -1754,53 +1754,84 @@ body {
     background: var(--accent-soft);
 }
 
-.existing-file-card {
+.attachments-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.existing-attachments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.existing-attachment-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 8px 12px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    margin-bottom: 10px;
+    transition: all var(--transition-fast);
+}
+.existing-attachment-item.marked-deleted {
+    opacity: 0.4;
+    text-decoration: line-through;
+    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.2);
 }
 
-.existing-file-info {
+.existing-attachment-item .file-link {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0;
-}
-
-.existing-file-name {
-    font-size: 13px;
-    font-weight: 600;
     color: var(--text-primary);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 220px;
+    max-width: 280px;
+}
+.existing-attachment-item .file-link:hover {
+    color: var(--accent);
 }
 
-.existing-file-actions {
+.file-selected-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.file-selected-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-hover);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
 }
 
-.btn-remove-file {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--accent);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    font-weight: 600;
+.file-selected-item .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 240px;
+    color: var(--text-primary);
 }
-.btn-remove-file:hover {
-    background: rgba(239, 68, 68, 0.2);
+
+.file-selected-item .size {
+    color: var(--text-tertiary);
+    font-size: 10px;
 }
 
 .mini-actions {

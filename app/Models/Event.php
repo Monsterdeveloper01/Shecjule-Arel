@@ -11,6 +11,13 @@ class Event extends Model
     use HasAttachment;
 
     /**
+     * The relationships that should always be loaded.
+     *
+     * @var array<int, string>
+     */
+    protected $with = ['attachments'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -22,21 +29,6 @@ class Event extends Model
         'category',
         'start_date',
         'end_date',
-        'file_path',
-        'file_name',
-        'file_size',
-    ];
-
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array<int, string>
-     */
-    protected $appends = [
-        'file_url',
-        'formatted_file_size',
-        'file_extension',
-        'file_type',
     ];
 
     /**
@@ -49,7 +41,6 @@ class Event extends Model
         return [
             'start_date' => 'datetime',
             'end_date' => 'datetime',
-            'file_size' => 'integer',
         ];
     }
 

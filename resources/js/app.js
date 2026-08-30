@@ -1,6 +1,6 @@
 // ===========================
 // SCHEDULE — Main JavaScript
-// Calendar, Modals, CRUD, PIN, File Attachments
+// Calendar, Modals, CRUD, PIN, Multi-File Attachments
 // ===========================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -67,32 +67,68 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-window.handleFileSelect = function(input, targetId) {
-    const container = document.getElementById(targetId);
+window.handleMultiFileSelect = function(input, targetListId) {
+    const container = document.getElementById(targetListId);
     if (!container) return;
 
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        container.querySelector('.file-selected-name').textContent = file.name;
-        container.querySelector('.file-selected-size').textContent = `(${formatBytes(file.size)})`;
-        container.classList.add('show');
+    container.innerHTML = '';
+
+    if (input.files && input.files.length > 0) {
+        Array.from(input.files).forEach((file, index) => {
+            const ext = file.name.split('.').pop().toLowerCase();
+            const item = document.createElement('div');
+            item.className = 'file-selected-item';
+            item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                    <span>📎</span>
+                    <span class="name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                    <span class="size">(${formatBytes(file.size)})</span>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+        container.style.display = 'flex';
     } else {
-        container.classList.remove('show');
+        container.style.display = 'none';
     }
 };
 
-window.clearSelectedFile = function(inputId, targetId) {
+window.clearSelectedFiles = function(inputId, targetListId) {
     const input = document.getElementById(inputId);
-    const container = document.getElementById(targetId);
+    const container = document.getElementById(targetListId);
     if (input) input.value = '';
-    if (container) container.classList.remove('show');
+    if (container) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+    }
 };
 
-window.removeExistingFile = function(boxId, hiddenInputId) {
-    const box = document.getElementById(boxId);
-    const input = document.getElementById(hiddenInputId);
-    if (box) box.style.display = 'none';
-    if (input) input.value = '1';
+window.toggleDeleteAttachment = function(id, btn) {
+    const item = document.getElementById(`existing-att-${id}`);
+    const inputContainer = document.getElementById('deletedAttachmentsInputs');
+    if (!item || !inputContainer) return;
+
+    let hiddenInput = document.getElementById(`deleted-att-input-${id}`);
+
+    if (hiddenInput) {
+        // Undo deletion
+        hiddenInput.remove();
+        item.classList.remove('marked-deleted');
+        btn.textContent = 'Hapus';
+        btn.style.background = 'rgba(239, 68, 68, 0.1)';
+    } else {
+        // Mark for deletion
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'deleted_attachment_ids[]';
+        hiddenInput.value = id;
+        hiddenInput.id = `deleted-att-input-${id}`;
+        inputContainer.appendChild(hiddenInput);
+
+        item.classList.add('marked-deleted');
+        btn.textContent = 'Batal Hapus';
+        btn.style.background = 'rgba(34, 197, 94, 0.2)';
+    }
 };
 
 // ===== SIDEBAR =====
@@ -166,7 +202,7 @@ function initModal() {
     });
 }
 
-function openModal(title, bodyHtml) {
+window.openModal = function(title, bodyHtml) {
     const overlay = document.getElementById('modalOverlay');
     const titleEl = document.getElementById('modalTitle');
     const bodyEl = document.getElementById('modalBody');
@@ -179,35 +215,47 @@ function openModal(title, bodyHtml) {
     setTimeout(() => {
         bodyEl.querySelector('input:not([type="hidden"]), textarea, select')?.focus();
     }, 100);
-}
+};
 
-function closeModal() {
+window.closeModal = function() {
     const overlay = document.getElementById('modalOverlay');
     overlay?.classList.remove('open');
     document.body.style.overflow = '';
+};
+
+// ===== HELPER: BUILD EXISTING ATTACHMENTS HTML =====
+function buildExistingAttachmentsHtml(attachments = []) {
+    if (!attachments || attachments.length === 0) return '';
+
+    let itemsHtml = '';
+    attachments.forEach(att => {
+        itemsHtml += `
+            <div class="existing-attachment-item" id="existing-att-${att.id}">
+                <a href="${att.file_url}" target="_blank" class="file-link" title="${escapeHtml(att.file_name)}">
+                    <span>${getFileIcon(att.file_type)}</span>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(att.file_name)}</span>
+                    <span style="font-size: 10px; color: var(--text-tertiary);">(${att.formatted_file_size || ''})</span>
+                </a>
+                <button type="button" class="btn-remove-file" onclick="toggleDeleteAttachment(${att.id}, this)">Hapus</button>
+            </div>
+        `;
+    });
+
+    return `
+        <label class="form-label" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">File Terlampir (${attachments.length}):</label>
+        <div class="existing-attachments-list">
+            ${itemsHtml}
+        </div>
+        <div id="deletedAttachmentsInputs"></div>
+    `;
 }
 
 // ===== TASK CRUD =====
 window.openTaskModal = function(task = null) {
     const isEdit = !!task;
     const title = isEdit ? 'Edit Tugas' : 'Tambah Tugas Baru';
-
-    let existingFileHtml = '';
-    if (isEdit && task.file_path) {
-        existingFileHtml = `
-            <div class="existing-file-card" id="taskExistingFile">
-                <div class="existing-file-info">
-                    <span>${getFileIcon(task.file_type)}</span>
-                    <a href="${task.file_url}" target="_blank" class="existing-file-name" title="${escapeHtml(task.file_name)}">${escapeHtml(task.file_name)}</a>
-                    <span class="file-selected-size">(${task.formatted_file_size || ''})</span>
-                </div>
-                <div class="existing-file-actions">
-                    <button type="button" class="btn-remove-file" onclick="removeExistingFile('taskExistingFile', 'taskRemoveFile')">Hapus File</button>
-                </div>
-            </div>
-            <input type="hidden" name="remove_file" id="taskRemoveFile" value="0">
-        `;
-    }
+    const attachments = task?.attachments || [];
+    const existingFilesHtml = isEdit ? buildExistingAttachmentsHtml(attachments) : '';
 
     const html = `
         <form id="taskForm" onsubmit="submitTask(event, ${isEdit ? task.id : 'null'})" enctype="multipart/form-data">
@@ -249,27 +297,20 @@ window.openTaskModal = function(task = null) {
             </div>` : ''}
             
             <div class="form-group">
-                <label class="form-label">Lampiran File (PDF, Word, Gambar, dll)</label>
-                ${existingFileHtml}
+                <label class="form-label">Lampiran File (Bisa pilih sekaligus banyak: PDF, Word, Excel, Gambar, dll)</label>
+                ${existingFilesHtml}
                 <div class="file-upload-zone">
-                    <input type="file" id="taskFileInput" name="file" onchange="handleFileSelect(this, 'taskSelectedInfo')">
+                    <input type="file" id="taskFileInput" name="files[]" multiple onchange="handleMultiFileSelect(this, 'taskSelectedList')">
                     <div class="file-upload-label">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>${isEdit && task.file_path ? 'Pilih file baru untuk mengganti' : 'Klik atau seret file ke sini (Maks 50MB)'}</span>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah file lampiran lagi' : 'Klik atau seret 1 atau lebih file ke sini'}</span>
                     </div>
                 </div>
-                <div class="file-selected-info" id="taskSelectedInfo">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span>📎</span>
-                        <span class="file-selected-name"></span>
-                        <span class="file-selected-size"></span>
-                    </div>
-                    <button type="button" class="file-remove-btn" onclick="clearSelectedFile('taskFileInput', 'taskSelectedInfo')" title="Batal pilih file">&times;</button>
-                </div>
+                <div class="file-selected-list" id="taskSelectedList" style="display: none;"></div>
             </div>
 
             <div class="form-actions">
@@ -339,27 +380,12 @@ window.openNoteModal = function(note = null) {
     const isEdit = !!note;
     const title = isEdit ? 'Edit Catatan' : 'Catatan Baru';
     const currentColor = (isEdit && note.color) ? note.color : '#6366f1';
+    const attachments = note?.attachments || [];
+    const existingFilesHtml = isEdit ? buildExistingAttachmentsHtml(attachments) : '';
 
     const colorOptions = noteColors.map(c =>
         `<div class="color-option ${c === currentColor ? 'selected' : ''}" style="background: ${c}" data-color="${c}" onclick="selectNoteColor('${c}')"></div>`
     ).join('');
-
-    let existingFileHtml = '';
-    if (isEdit && note.file_path) {
-        existingFileHtml = `
-            <div class="existing-file-card" id="noteExistingFile">
-                <div class="existing-file-info">
-                    <span>${getFileIcon(note.file_type)}</span>
-                    <a href="${note.file_url}" target="_blank" class="existing-file-name" title="${escapeHtml(note.file_name)}">${escapeHtml(note.file_name)}</a>
-                    <span class="file-selected-size">(${note.formatted_file_size || ''})</span>
-                </div>
-                <div class="existing-file-actions">
-                    <button type="button" class="btn-remove-file" onclick="removeExistingFile('noteExistingFile', 'noteRemoveFile')">Hapus File</button>
-                </div>
-            </div>
-            <input type="hidden" name="remove_file" id="noteRemoveFile" value="0">
-        `;
-    }
 
     const html = `
         <form id="noteForm" onsubmit="submitNote(event, ${isEdit ? note.id : 'null'})" enctype="multipart/form-data">
@@ -384,27 +410,20 @@ window.openNoteModal = function(note = null) {
             </div>
 
             <div class="form-group">
-                <label class="form-label">Lampiran File (PDF, Word, Gambar, dll)</label>
-                ${existingFileHtml}
+                <label class="form-label">Lampiran File (Bisa pilih sekaligus banyak)</label>
+                ${existingFilesHtml}
                 <div class="file-upload-zone">
-                    <input type="file" id="noteFileInput" name="file" onchange="handleFileSelect(this, 'noteSelectedInfo')">
+                    <input type="file" id="noteFileInput" name="files[]" multiple onchange="handleMultiFileSelect(this, 'noteSelectedList')">
                     <div class="file-upload-label">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>${isEdit && note.file_path ? 'Pilih file baru untuk mengganti' : 'Klik atau seret file ke sini (Maks 50MB)'}</span>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah file lampiran lagi' : 'Klik atau seret 1 atau lebih file ke sini'}</span>
                     </div>
                 </div>
-                <div class="file-selected-info" id="noteSelectedInfo">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span>📎</span>
-                        <span class="file-selected-name"></span>
-                        <span class="file-selected-size"></span>
-                    </div>
-                    <button type="button" class="file-remove-btn" onclick="clearSelectedFile('noteFileInput', 'noteSelectedInfo')" title="Batal pilih file">&times;</button>
-                </div>
+                <div class="file-selected-list" id="noteSelectedList" style="display: none;"></div>
             </div>
 
             <div class="form-actions">
@@ -477,23 +496,8 @@ window.deleteNote = async function(noteId) {
 window.openEventModal = function(event = null) {
     const isEdit = !!event;
     const title = isEdit ? 'Edit Acara' : 'Acara Baru';
-
-    let existingFileHtml = '';
-    if (isEdit && event.file_path) {
-        existingFileHtml = `
-            <div class="existing-file-card" id="eventExistingFile">
-                <div class="existing-file-info">
-                    <span>${getFileIcon(event.file_type)}</span>
-                    <a href="${event.file_url}" target="_blank" class="existing-file-name" title="${escapeHtml(event.file_name)}">${escapeHtml(event.file_name)}</a>
-                    <span class="file-selected-size">(${event.formatted_file_size || ''})</span>
-                </div>
-                <div class="existing-file-actions">
-                    <button type="button" class="btn-remove-file" onclick="removeExistingFile('eventExistingFile', 'eventRemoveFile')">Hapus File</button>
-                </div>
-            </div>
-            <input type="hidden" name="remove_file" id="eventRemoveFile" value="0">
-        `;
-    }
+    const attachments = event?.attachments || [];
+    const existingFilesHtml = isEdit ? buildExistingAttachmentsHtml(attachments) : '';
 
     const html = `
         <form id="eventForm" onsubmit="submitEvent(event, ${isEdit ? event.id : 'null'})" enctype="multipart/form-data">
@@ -533,27 +537,20 @@ window.openEventModal = function(event = null) {
             </div>
 
             <div class="form-group">
-                <label class="form-label">Lampiran File (PDF, Word, Gambar, dll)</label>
-                ${existingFileHtml}
+                <label class="form-label">Lampiran File (Bisa pilih sekaligus banyak)</label>
+                ${existingFilesHtml}
                 <div class="file-upload-zone">
-                    <input type="file" id="eventFileInput" name="file" onchange="handleFileSelect(this, 'eventSelectedInfo')">
+                    <input type="file" id="eventFileInput" name="files[]" multiple onchange="handleMultiFileSelect(this, 'eventSelectedList')">
                     <div class="file-upload-label">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>${isEdit && event.file_path ? 'Pilih file baru untuk mengganti' : 'Klik atau seret file ke sini (Maks 50MB)'}</span>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah file lampiran lagi' : 'Klik atau seret 1 atau lebih file ke sini'}</span>
                     </div>
                 </div>
-                <div class="file-selected-info" id="eventSelectedInfo">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span>📎</span>
-                        <span class="file-selected-name"></span>
-                        <span class="file-selected-size"></span>
-                    </div>
-                    <button type="button" class="file-remove-btn" onclick="clearSelectedFile('eventFileInput', 'eventSelectedInfo')" title="Batal pilih file">&times;</button>
-                </div>
+                <div class="file-selected-list" id="eventSelectedList" style="display: none;"></div>
             </div>
 
             <div class="form-actions">
@@ -643,7 +640,8 @@ function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
         tasks.forEach(t => {
             const pDot = t.priority === 'urgent' ? '🔴' : (t.priority === 'high' ? '🟠' : (t.priority === 'medium' ? '🟡' : '🟢'));
             const statusIcon = t.status === 'completed' ? '✓ ' : '';
-            const fileIcon = t.file_path ? ' 📎' : '';
+            const attCount = t.attachments?.length || 0;
+            const fileIcon = attCount > 0 ? ` 📎 (${attCount})` : '';
             html += `<div class="cal-tooltip-row">
                 <span>${pDot}</span>
                 <span class="tooltip-title ${t.status === 'completed' ? 'completed' : ''}">${statusIcon}${escapeHtml(t.title)}${fileIcon}</span>
@@ -655,7 +653,8 @@ function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
     if (events.length > 0) {
         events.forEach(ev => {
             const catIcon = ev.category === 'kuliah' ? '📚' : (ev.category === 'ujian' ? '📝' : (ev.category === 'seminar' ? '🎤' : (ev.category === 'organisasi' ? '👥' : '🏠')));
-            const fileIcon = ev.file_path ? ' 📎' : '';
+            const attCount = ev.attachments?.length || 0;
+            const fileIcon = attCount > 0 ? ` 📎 (${attCount})` : '';
             html += `<div class="cal-tooltip-row">
                 <span>${catIcon}</span>
                 <span class="tooltip-title">${escapeHtml(ev.title)}${fileIcon}</span>
@@ -667,7 +666,8 @@ function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
     if (notes.length > 0) {
         notes.forEach(n => {
             const pinIcon = n.is_pinned ? '📌' : '🗒️';
-            const fileIcon = n.file_path ? ' 📎' : '';
+            const attCount = n.attachments?.length || 0;
+            const fileIcon = attCount > 0 ? ` 📎 (${attCount})` : '';
             html += `<div class="cal-tooltip-row">
                 <span>${pinIcon}</span>
                 <span class="tooltip-title">${escapeHtml(n.title)}${fileIcon}</span>
@@ -831,6 +831,21 @@ function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', hasTasks
     return el;
 }
 
+function renderAttachmentsHtml(attachments = []) {
+    if (!attachments || attachments.length === 0) return '';
+    let pills = '';
+    attachments.forEach(att => {
+        pills += `
+            <a href="${att.file_url}" target="_blank" class="attachment-pill type-${att.file_type || 'file'}" style="margin: 2px; padding: 2px 8px; font-size: 11px;">
+                <span class="att-icon">${getFileIcon(att.file_type)}</span>
+                <span class="att-name">${escapeHtml(att.file_name)}</span>
+                <span class="att-size">(${att.formatted_file_size || ''})</span>
+            </a>
+        `;
+    });
+    return `<div class="attachments-wrap" style="margin-top: 4px;">${pills}</div>`;
+}
+
 function openDayDetail(dateStr, day) {
     const panel = document.getElementById('dayDetailPanel');
     const titleEl = document.getElementById('dayDetailTitle');
@@ -870,15 +885,7 @@ function openDayDetail(dateStr, day) {
         if (tasks.length > 0) {
             html += '<div class="day-detail-section"><h4>📋 Tugas (' + tasks.length + ')</h4>';
             tasks.forEach(t => {
-                const fileHtml = t.file_path ? `
-                    <div style="margin-top: 4px;">
-                        <a href="${t.file_url}" target="_blank" class="attachment-pill type-${t.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
-                            <span class="att-icon">${getFileIcon(t.file_type)}</span>
-                            <span class="att-name">${escapeHtml(t.file_name)}</span>
-                            <span class="att-size">(${t.formatted_file_size || ''})</span>
-                        </a>
-                    </div>` : '';
-
+                const fileHtml = renderAttachmentsHtml(t.attachments);
                 const taskJson = escapeHtml(JSON.stringify(t));
 
                 html += `<div class="day-detail-item" style="border-left-color: var(--priority-${t.priority})" id="task-${t.id}">
@@ -912,14 +919,7 @@ function openDayDetail(dateStr, day) {
         if (events.length > 0) {
             html += '<div class="day-detail-section"><h4>🗓️ Acara (' + events.length + ')</h4>';
             events.forEach(e => {
-                const fileHtml = e.file_path ? `
-                    <div style="margin-top: 4px;">
-                        <a href="${e.file_url}" target="_blank" class="attachment-pill type-${e.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
-                            <span class="att-icon">${getFileIcon(e.file_type)}</span>
-                            <span class="att-name">${escapeHtml(e.file_name)}</span>
-                        </a>
-                    </div>` : '';
-
+                const fileHtml = renderAttachmentsHtml(e.attachments);
                 const eventJson = escapeHtml(JSON.stringify(e));
 
                 html += `<div class="day-detail-item" style="border-left-color: var(--cat-${e.category})" id="event-${e.id}">
@@ -950,14 +950,7 @@ function openDayDetail(dateStr, day) {
         if (notes.length > 0) {
             html += '<div class="day-detail-section"><h4>📌 Catatan (' + notes.length + ')</h4>';
             notes.forEach(n => {
-                const fileHtml = n.file_path ? `
-                    <div style="margin-top: 4px;">
-                        <a href="${n.file_url}" target="_blank" class="attachment-pill type-${n.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
-                            <span class="att-icon">${getFileIcon(n.file_type)}</span>
-                            <span class="att-name">${escapeHtml(n.file_name)}</span>
-                        </a>
-                    </div>` : '';
-
+                const fileHtml = renderAttachmentsHtml(n.attachments);
                 const noteJson = escapeHtml(JSON.stringify(n));
 
                 html += `<div class="day-detail-item" style="border-left-color: ${n.color || '#6366f1'}" id="note-${n.id}">

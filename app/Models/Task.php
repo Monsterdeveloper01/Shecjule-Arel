@@ -11,6 +11,13 @@ class Task extends Model
     use HasAttachment;
 
     /**
+     * The relationships that should always be loaded.
+     *
+     * @var array<int, string>
+     */
+    protected $with = ['attachments'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -22,21 +29,6 @@ class Task extends Model
         'deadline',
         'priority',
         'status',
-        'file_path',
-        'file_name',
-        'file_size',
-    ];
-
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array<int, string>
-     */
-    protected $appends = [
-        'file_url',
-        'formatted_file_size',
-        'file_extension',
-        'file_type',
     ];
 
     /**
@@ -48,7 +40,6 @@ class Task extends Model
     {
         return [
             'deadline' => 'datetime',
-            'file_size' => 'integer',
         ];
     }
 

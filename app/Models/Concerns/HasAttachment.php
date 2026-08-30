@@ -2,7 +2,9 @@
 
 namespace App\Models\Concerns;
 
-use Illuminate\Support\Facades\Storage;
+use App\Models\Attachment;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Http\UploadedFile;
 
 trait HasAttachment
 {
@@ -12,86 +14,56 @@ trait HasAttachment
     protected static function bootHasAttachment(): void
     {
         static::deleting(function (self $model): void {
-            $model->deleteAttachmentFile();
+            $model->attachments->each->delete();
         });
     }
 
     /**
-     * Get URL for the attached file.
+     * Get all attachments for the model.
      */
-    public function getFileUrlAttribute(): ?string
+    public function attachments(): MorphMany
     {
-        if (! $this->file_path) {
-            return null;
-        }
-
-        return Storage::disk('public')->url($this->file_path);
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 
     /**
-     * Get formatted file size (e.g. 1.5 MB, 320 KB).
+     * Save multiple uploaded files as attachments.
+     *
+     * @param  array<UploadedFile>|UploadedFile|null  $files
      */
-    public function getFormattedFileSizeAttribute(): ?string
+    public function saveAttachments(array|UploadedFile|null $files, string $folder = 'uploads'): void
     {
-        if (! $this->file_size) {
-            return null;
+        if (! $files) {
+            return;
         }
 
-        $bytes = (int) $this->file_size;
-
-        if ($bytes >= 1048576) {
-            return round($bytes / 1048576, 1).' MB';
+        if ($files instanceof UploadedFile) {
+            $files = [$files];
         }
 
-        if ($bytes >= 1024) {
-            return round($bytes / 1024, 1).' KB';
+        foreach ($files as $file) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                $path = $file->store($folder, 'public');
+                $this->attachments()->create([
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                ]);
+            }
         }
-
-        return $bytes.' B';
     }
 
     /**
-     * Get file extension in lowercase.
+     * Remove specific attachments by their IDs.
+     *
+     * @param  array<int|string>|null  $ids
      */
-    public function getFileExtensionAttribute(): ?string
+    public function deleteAttachmentsByIds(?array $ids): void
     {
-        if (! $this->file_name) {
-            return null;
+        if (empty($ids)) {
+            return;
         }
 
-        return strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
-    }
-
-    /**
-     * Get file type category for UI styling and icons.
-     */
-    public function getFileTypeAttribute(): ?string
-    {
-        $ext = $this->file_extension;
-
-        if (! $ext) {
-            return null;
-        }
-
-        return match ($ext) {
-            'pdf' => 'pdf',
-            'doc', 'docx', 'odt', 'rtf' => 'word',
-            'xls', 'xlsx', 'csv', 'ods' => 'excel',
-            'ppt', 'pptx', 'odp' => 'powerpoint',
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp' => 'image',
-            'zip', 'rar', '7z', 'tar', 'gz' => 'archive',
-            'txt', 'md' => 'text',
-            default => 'file',
-        };
-    }
-
-    /**
-     * Delete the physical file from storage disk.
-     */
-    public function deleteAttachmentFile(): void
-    {
-        if ($this->file_path && Storage::disk('public')->exists($this->file_path)) {
-            Storage::disk('public')->delete($this->file_path);
-        }
+        $this->attachments()->whereIn('id', $ids)->get()->each->delete();
     }
 }
