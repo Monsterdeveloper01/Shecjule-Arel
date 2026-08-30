@@ -1,6 +1,6 @@
 // ===========================
 // SCHEDULE — Main JavaScript
-// Calendar, Modals, CRUD, PIN, Multi-File Attachments
+// Calendar, Modals, CRUD, PIN, Multi-File Drag & Drop
 // ===========================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initPinpad();
     initDashboardToggles();
 });
+
+// ===== Global State for Multi-File Upload Queue =====
+window.activeUploadFiles = [];
 
 // ===== CSRF Token & API =====
 function getCsrfToken() {
@@ -59,6 +62,21 @@ function getFileIcon(type) {
     }
 }
 
+function getExtFromFilename(filename) {
+    if (!filename) return 'file';
+    const ext = filename.split('.').pop().toLowerCase();
+    switch (ext) {
+        case 'pdf': return 'pdf';
+        case 'doc': case 'docx': case 'odt': case 'rtf': return 'word';
+        case 'xls': case 'xlsx': case 'csv': case 'ods': return 'excel';
+        case 'ppt': case 'pptx': case 'odp': return 'powerpoint';
+        case 'jpg': case 'jpeg': case 'png': case 'gif': case 'webp': case 'svg': return 'image';
+        case 'zip': case 'rar': case '7z': case 'tar': case 'gz': return 'archive';
+        case 'txt': case 'md': return 'text';
+        default: return 'file';
+    }
+}
+
 function formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
@@ -67,41 +85,93 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-window.handleMultiFileSelect = function(input, targetListId) {
+// ===== DRAG & DROP MULTI-FILE QUEUE =====
+function addFilesToQueue(fileList, targetListId) {
+    if (!fileList || fileList.length === 0) return;
+
+    Array.from(fileList).forEach(file => {
+        const exists = window.activeUploadFiles.some(f => f.name === file.name && f.size === file.size);
+        if (!exists) {
+            window.activeUploadFiles.push(file);
+        }
+    });
+
+    renderSelectedFilesList(targetListId);
+}
+
+function renderSelectedFilesList(targetListId) {
     const container = document.getElementById(targetListId);
     if (!container) return;
 
     container.innerHTML = '';
 
-    if (input.files && input.files.length > 0) {
-        Array.from(input.files).forEach((file, index) => {
-            const ext = file.name.split('.').pop().toLowerCase();
-            const item = document.createElement('div');
-            item.className = 'file-selected-item';
-            item.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
-                    <span>📎</span>
-                    <span class="name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
-                    <span class="size">(${formatBytes(file.size)})</span>
-                </div>
-            `;
-            container.appendChild(item);
-        });
-        container.style.display = 'flex';
-    } else {
+    if (window.activeUploadFiles.length === 0) {
         container.style.display = 'none';
+        return;
     }
+
+    window.activeUploadFiles.forEach((file, index) => {
+        const extCategory = getExtFromFilename(file.name);
+        const item = document.createElement('div');
+        item.className = 'file-selected-item';
+        item.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                <span>${getFileIcon(extCategory)}</span>
+                <span class="name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                <span class="size">(${formatBytes(file.size)})</span>
+            </div>
+            <button type="button" class="remove-btn" onclick="removeQueuedFile(${index}, '${targetListId}')" title="Hapus file ini">&times;</button>
+        `;
+        container.appendChild(item);
+    });
+
+    container.style.display = 'flex';
+}
+
+window.removeQueuedFile = function(index, targetListId) {
+    window.activeUploadFiles.splice(index, 1);
+    renderSelectedFilesList(targetListId);
 };
 
-window.clearSelectedFiles = function(inputId, targetListId) {
+function setupDropZone(zoneId, inputId, targetListId) {
+    const zone = document.getElementById(zoneId);
     const input = document.getElementById(inputId);
-    const container = document.getElementById(targetListId);
-    if (input) input.value = '';
-    if (container) {
-        container.innerHTML = '';
-        container.style.display = 'none';
+    if (!zone) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.add('drag-over');
+        }, false);
+    });
+
+    ['dragleave', 'dragend'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('drag-over');
+        }, false);
+    });
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('drag-over');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            addFilesToQueue(e.dataTransfer.files, targetListId);
+        }
+    }, false);
+
+    if (input) {
+        input.addEventListener('change', (e) => {
+            if (input.files && input.files.length > 0) {
+                addFilesToQueue(input.files, targetListId);
+                input.value = ''; // Clear to allow selecting the same file again if re-added
+            }
+        });
     }
-};
+}
 
 window.toggleDeleteAttachment = function(id, btn) {
     const item = document.getElementById(`existing-att-${id}`);
@@ -111,13 +181,11 @@ window.toggleDeleteAttachment = function(id, btn) {
     let hiddenInput = document.getElementById(`deleted-att-input-${id}`);
 
     if (hiddenInput) {
-        // Undo deletion
         hiddenInput.remove();
         item.classList.remove('marked-deleted');
         btn.textContent = 'Hapus';
         btn.style.background = 'rgba(239, 68, 68, 0.1)';
     } else {
-        // Mark for deletion
         hiddenInput = document.createElement('input');
         hiddenInput.type = 'hidden';
         hiddenInput.name = 'deleted_attachment_ids[]';
@@ -207,6 +275,8 @@ window.openModal = function(title, bodyHtml) {
     const titleEl = document.getElementById('modalTitle');
     const bodyEl = document.getElementById('modalBody');
 
+    window.activeUploadFiles = []; // Reset queue for fresh modal
+
     titleEl.textContent = title;
     bodyEl.innerHTML = bodyHtml;
     overlay.classList.add('open');
@@ -221,6 +291,7 @@ window.closeModal = function() {
     const overlay = document.getElementById('modalOverlay');
     overlay?.classList.remove('open');
     document.body.style.overflow = '';
+    window.activeUploadFiles = [];
 };
 
 // ===== HELPER: BUILD EXISTING ATTACHMENTS HTML =====
@@ -297,17 +368,17 @@ window.openTaskModal = function(task = null) {
             </div>` : ''}
             
             <div class="form-group">
-                <label class="form-label">Lampiran File (Bisa pilih sekaligus banyak: PDF, Word, Excel, Gambar, dll)</label>
+                <label class="form-label">Lampiran File (Tarik & lepas banyak file sekaligus atau klik untuk memilih)</label>
                 ${existingFilesHtml}
-                <div class="file-upload-zone">
-                    <input type="file" id="taskFileInput" name="files[]" multiple onchange="handleMultiFileSelect(this, 'taskSelectedList')">
+                <div class="file-upload-zone" id="taskDropZone">
+                    <input type="file" id="taskFileInput" multiple>
                     <div class="file-upload-label">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>${isEdit && attachments.length > 0 ? '+ Tambah file lampiran lagi' : 'Klik atau seret 1 atau lebih file ke sini'}</span>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah / Tarik file lampiran ke sini' : 'Tarik & Lepas beberapa file ke sini atau Klik untuk memilih'}</span>
                     </div>
                 </div>
                 <div class="file-selected-list" id="taskSelectedList" style="display: none;"></div>
@@ -320,6 +391,7 @@ window.openTaskModal = function(task = null) {
         </form>
     `;
     openModal(title, html);
+    setupDropZone('taskDropZone', 'taskFileInput', 'taskSelectedList');
 };
 
 window.editTask = function(id, task) {
@@ -333,6 +405,12 @@ window.submitTask = async function(e, taskId) {
     if (submitBtn) submitBtn.disabled = true;
 
     const formData = new FormData(form);
+
+    // Append all queued files
+    window.activeUploadFiles.forEach(file => {
+        formData.append('files[]', file);
+    });
+
     if (taskId) {
         formData.append('_method', 'PUT');
     }
@@ -410,17 +488,17 @@ window.openNoteModal = function(note = null) {
             </div>
 
             <div class="form-group">
-                <label class="form-label">Lampiran File (Bisa pilih sekaligus banyak)</label>
+                <label class="form-label">Lampiran File (Tarik & lepas banyak file sekaligus atau klik untuk memilih)</label>
                 ${existingFilesHtml}
-                <div class="file-upload-zone">
-                    <input type="file" id="noteFileInput" name="files[]" multiple onchange="handleMultiFileSelect(this, 'noteSelectedList')">
+                <div class="file-upload-zone" id="noteDropZone">
+                    <input type="file" id="noteFileInput" multiple>
                     <div class="file-upload-label">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>${isEdit && attachments.length > 0 ? '+ Tambah file lampiran lagi' : 'Klik atau seret 1 atau lebih file ke sini'}</span>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah / Tarik file lampiran ke sini' : 'Tarik & Lepas beberapa file ke sini atau Klik untuk memilih'}</span>
                     </div>
                 </div>
                 <div class="file-selected-list" id="noteSelectedList" style="display: none;"></div>
@@ -433,6 +511,7 @@ window.openNoteModal = function(note = null) {
         </form>
     `;
     openModal(title, html);
+    setupDropZone('noteDropZone', 'noteFileInput', 'noteSelectedList');
 };
 
 window.selectNoteColor = function(color) {
@@ -452,6 +531,12 @@ window.submitNote = async function(e, noteId) {
     if (submitBtn) submitBtn.disabled = true;
 
     const formData = new FormData(form);
+
+    // Append all queued files
+    window.activeUploadFiles.forEach(file => {
+        formData.append('files[]', file);
+    });
+
     if (noteId) {
         formData.append('_method', 'PUT');
     }
@@ -537,17 +622,17 @@ window.openEventModal = function(event = null) {
             </div>
 
             <div class="form-group">
-                <label class="form-label">Lampiran File (Bisa pilih sekaligus banyak)</label>
+                <label class="form-label">Lampiran File (Tarik & lepas banyak file sekaligus atau klik untuk memilih)</label>
                 ${existingFilesHtml}
-                <div class="file-upload-zone">
-                    <input type="file" id="eventFileInput" name="files[]" multiple onchange="handleMultiFileSelect(this, 'eventSelectedList')">
+                <div class="file-upload-zone" id="eventDropZone">
+                    <input type="file" id="eventFileInput" multiple>
                     <div class="file-upload-label">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
-                        <span>${isEdit && attachments.length > 0 ? '+ Tambah file lampiran lagi' : 'Klik atau seret 1 atau lebih file ke sini'}</span>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah / Tarik file lampiran ke sini' : 'Tarik & Lepas beberapa file ke sini atau Klik untuk memilih'}</span>
                     </div>
                 </div>
                 <div class="file-selected-list" id="eventSelectedList" style="display: none;"></div>
@@ -560,6 +645,7 @@ window.openEventModal = function(event = null) {
         </form>
     `;
     openModal(title, html);
+    setupDropZone('eventDropZone', 'eventFileInput', 'eventSelectedList');
 };
 
 window.editEvent = function(id, event) {
@@ -573,6 +659,12 @@ window.submitEvent = async function(e, eventId) {
     if (submitBtn) submitBtn.disabled = true;
 
     const formData = new FormData(form);
+
+    // Append all queued files
+    window.activeUploadFiles.forEach(file => {
+        formData.append('files[]', file);
+    });
+
     if (eventId) {
         formData.append('_method', 'PUT');
     }
@@ -781,11 +873,11 @@ function renderCalendar() {
                         today.getMonth() === currentMonth &&
                         today.getDate() === d;
 
-        const hasTasks = calendarData.tasks && calendarData.tasks[dateStr] && calendarData.tasks[dateStr].length > 0;
-        const hasEvents = calendarData.events && calendarData.events[dateStr] && calendarData.events[dateStr].length > 0;
-        const hasNotes = calendarData.notes && calendarData.notes[dateStr] && calendarData.notes[dateStr].length > 0;
+        const dayTasks = calendarData.tasks?.[dateStr] || [];
+        const dayEvents = calendarData.events?.[dateStr] || [];
+        const dayNotes = calendarData.notes?.[dateStr] || [];
 
-        const el = createCalDay(d, false, isToday, dateStr, hasTasks, hasEvents, hasNotes);
+        const el = createCalDay(d, false, isToday, dateStr, dayTasks, dayEvents, dayNotes);
         grid.appendChild(el);
     }
 
@@ -798,23 +890,99 @@ function renderCalendar() {
     }
 }
 
-function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', hasTasks = null, hasEvents = null, hasNotes = null) {
+function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', tasks = [], events = [], notes = []) {
     const el = document.createElement('div');
     el.className = 'cal-day';
     if (isOtherMonth) el.classList.add('other-month');
     if (isToday) el.classList.add('today');
 
-    const numSpan = document.createElement('span');
-    numSpan.textContent = day;
-    el.appendChild(numSpan);
+    const totalCount = (tasks?.length || 0) + (events?.length || 0) + (notes?.length || 0);
 
-    if (hasTasks || hasEvents || hasNotes) {
-        const dots = document.createElement('div');
-        dots.className = 'cal-day-dots';
-        if (hasTasks) { const d = document.createElement('span'); d.className = 'cal-dot dot-task'; dots.appendChild(d); }
-        if (hasEvents) { const d = document.createElement('span'); d.className = 'cal-dot dot-event'; dots.appendChild(d); }
-        if (hasNotes) { const d = document.createElement('span'); d.className = 'cal-dot dot-note'; dots.appendChild(d); }
-        el.appendChild(dots);
+    // Day Header (number & count badge)
+    const header = document.createElement('div');
+    header.className = 'cal-day-header';
+
+    const numSpan = document.createElement('span');
+    numSpan.className = 'cal-day-num';
+    numSpan.textContent = day;
+    header.appendChild(numSpan);
+
+    if (totalCount > 0 && !isOtherMonth) {
+        const badge = document.createElement('span');
+        badge.className = 'cal-day-badge-count';
+        badge.textContent = totalCount;
+        header.appendChild(badge);
+    }
+    el.appendChild(header);
+
+    // Render Event / Task / Note Chip Badges
+    if (!isOtherMonth && totalCount > 0) {
+        const eventsContainer = document.createElement('div');
+        eventsContainer.className = 'cal-day-events';
+
+        let itemsRendered = 0;
+        const maxVisible = 2;
+
+        // 1. Tasks
+        if (tasks && tasks.length > 0) {
+            tasks.forEach(t => {
+                if (itemsRendered < maxVisible) {
+                    const chip = document.createElement('div');
+                    chip.className = `cal-event-chip chip-task priority-${t.priority} ${t.status === 'completed' ? 'is-completed' : ''}`;
+                    chip.title = `Tugas: ${t.title} (${t.priority})`;
+                    chip.innerHTML = `
+                        <span class="chip-dot"></span>
+                        <span class="chip-text">${escapeHtml(t.title)}</span>
+                    `;
+                    eventsContainer.appendChild(chip);
+                    itemsRendered++;
+                }
+            });
+        }
+
+        // 2. Events
+        if (events && events.length > 0) {
+            events.forEach(ev => {
+                if (itemsRendered < maxVisible) {
+                    const chip = document.createElement('div');
+                    chip.className = `cal-event-chip chip-event cat-${ev.category}`;
+                    chip.title = `Acara: ${ev.title} (${ev.category})`;
+                    chip.innerHTML = `
+                        <span class="chip-dot"></span>
+                        <span class="chip-text">${escapeHtml(ev.title)}</span>
+                    `;
+                    eventsContainer.appendChild(chip);
+                    itemsRendered++;
+                }
+            });
+        }
+
+        // 3. Notes
+        if (notes && notes.length > 0) {
+            notes.forEach(n => {
+                if (itemsRendered < maxVisible) {
+                    const chip = document.createElement('div');
+                    chip.className = 'cal-event-chip chip-note';
+                    chip.title = `Catatan: ${n.title}`;
+                    chip.innerHTML = `
+                        <span class="chip-dot"></span>
+                        <span class="chip-text">${escapeHtml(n.title)}</span>
+                    `;
+                    eventsContainer.appendChild(chip);
+                    itemsRendered++;
+                }
+            });
+        }
+
+        // 4. More chip if remaining
+        if (totalCount > maxVisible) {
+            const moreChip = document.createElement('div');
+            moreChip.className = 'cal-event-chip chip-more';
+            moreChip.textContent = `+${totalCount - maxVisible} lainnya`;
+            eventsContainer.appendChild(moreChip);
+        }
+
+        el.appendChild(eventsContainer);
     }
 
     if (dateStr && !isOtherMonth) {
@@ -822,6 +990,10 @@ function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', hasTasks
             hideCalTooltip();
             openDayDetail(dateStr, day);
         });
+
+        const hasTasks = tasks && tasks.length > 0;
+        const hasEvents = events && events.length > 0;
+        const hasNotes = notes && notes.length > 0;
 
         el.addEventListener('mouseenter', (e) => showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes));
         el.addEventListener('mousemove', (e) => positionCalTooltip(e));
