@@ -1,6 +1,6 @@
 // ===========================
 // SCHEDULE — Main JavaScript
-// Calendar, Modals, CRUD, PIN
+// Calendar, Modals, CRUD, PIN, File Attachments
 // ===========================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboardToggles();
 });
 
-// ===== CSRF Token =====
+// ===== CSRF Token & API =====
 function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
@@ -32,6 +32,68 @@ async function apiRequest(url, method = 'GET', data = null) {
     const response = await fetch(url, options);
     return response.json();
 }
+
+async function apiFormRequest(url, formData) {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
+        body: formData,
+    });
+    return response.json();
+}
+
+// ===== FILE HELPERS =====
+function getFileIcon(type) {
+    switch (type) {
+        case 'pdf': return '📄';
+        case 'word': return '📝';
+        case 'excel': return '📊';
+        case 'powerpoint': return '📽️';
+        case 'image': return '🖼️';
+        case 'archive': return '📦';
+        case 'text': return '📃';
+        default: return '📎';
+    }
+}
+
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+window.handleFileSelect = function(input, targetId) {
+    const container = document.getElementById(targetId);
+    if (!container) return;
+
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        container.querySelector('.file-selected-name').textContent = file.name;
+        container.querySelector('.file-selected-size').textContent = `(${formatBytes(file.size)})`;
+        container.classList.add('show');
+    } else {
+        container.classList.remove('show');
+    }
+};
+
+window.clearSelectedFile = function(inputId, targetId) {
+    const input = document.getElementById(inputId);
+    const container = document.getElementById(targetId);
+    if (input) input.value = '';
+    if (container) container.classList.remove('show');
+};
+
+window.removeExistingFile = function(boxId, hiddenInputId) {
+    const box = document.getElementById(boxId);
+    const input = document.getElementById(hiddenInputId);
+    if (box) box.style.display = 'none';
+    if (input) input.value = '1';
+};
 
 // ===== SIDEBAR =====
 function initSidebar() {
@@ -64,7 +126,6 @@ function initFAB() {
         fabMenu.classList.toggle('open');
     });
 
-    // Close FAB when clicking outside
     document.addEventListener('click', (e) => {
         const container = document.getElementById('fabContainer');
         if (container && !container.contains(e.target)) {
@@ -73,7 +134,6 @@ function initFAB() {
         }
     });
 
-    // FAB actions
     document.getElementById('fabAddTask')?.addEventListener('click', () => {
         fabBtn.classList.remove('open');
         fabMenu.classList.remove('open');
@@ -116,9 +176,8 @@ function openModal(title, bodyHtml) {
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // Focus first input
     setTimeout(() => {
-        bodyEl.querySelector('input, textarea, select')?.focus();
+        bodyEl.querySelector('input:not([type="hidden"]), textarea, select')?.focus();
     }, 100);
 }
 
@@ -133,8 +192,25 @@ window.openTaskModal = function(task = null) {
     const isEdit = !!task;
     const title = isEdit ? 'Edit Tugas' : 'Tambah Tugas Baru';
 
+    let existingFileHtml = '';
+    if (isEdit && task.file_path) {
+        existingFileHtml = `
+            <div class="existing-file-card" id="taskExistingFile">
+                <div class="existing-file-info">
+                    <span>${getFileIcon(task.file_type)}</span>
+                    <a href="${task.file_url}" target="_blank" class="existing-file-name" title="${escapeHtml(task.file_name)}">${escapeHtml(task.file_name)}</a>
+                    <span class="file-selected-size">(${task.formatted_file_size || ''})</span>
+                </div>
+                <div class="existing-file-actions">
+                    <button type="button" class="btn-remove-file" onclick="removeExistingFile('taskExistingFile', 'taskRemoveFile')">Hapus File</button>
+                </div>
+            </div>
+            <input type="hidden" name="remove_file" id="taskRemoveFile" value="0">
+        `;
+    }
+
     const html = `
-        <form id="taskForm" onsubmit="submitTask(event, ${isEdit ? task.id : 'null'})">
+        <form id="taskForm" onsubmit="submitTask(event, ${isEdit ? task.id : 'null'})" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label" for="taskTitle">Judul *</label>
                 <input type="text" class="form-input" id="taskTitle" name="title" value="${isEdit ? escapeHtml(task.title) : ''}" required placeholder="Contoh: Tugas UAS Basis Data">
@@ -171,9 +247,34 @@ window.openTaskModal = function(task = null) {
                     <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
                 </select>
             </div>` : ''}
+            
+            <div class="form-group">
+                <label class="form-label">Lampiran File (PDF, Word, Gambar, dll)</label>
+                ${existingFileHtml}
+                <div class="file-upload-zone">
+                    <input type="file" id="taskFileInput" name="file" onchange="handleFileSelect(this, 'taskSelectedInfo')">
+                    <div class="file-upload-label">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>${isEdit && task.file_path ? 'Pilih file baru untuk mengganti' : 'Klik atau seret file ke sini (Maks 50MB)'}</span>
+                    </div>
+                </div>
+                <div class="file-selected-info" id="taskSelectedInfo">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>📎</span>
+                        <span class="file-selected-name"></span>
+                        <span class="file-selected-size"></span>
+                    </div>
+                    <button type="button" class="file-remove-btn" onclick="clearSelectedFile('taskFileInput', 'taskSelectedInfo')" title="Batal pilih file">&times;</button>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
-                <button type="submit" class="btn-primary">${isEdit ? 'Simpan' : 'Tambah'}</button>
+                <button type="submit" class="btn-primary" id="taskSubmitBtn">${isEdit ? 'Simpan' : 'Tambah'}</button>
             </div>
         </form>
     `;
@@ -187,22 +288,28 @@ window.editTask = function(id, task) {
 window.submitTask = async function(e, taskId) {
     e.preventDefault();
     const form = document.getElementById('taskForm');
-    const data = {
-        title: form.querySelector('#taskTitle').value,
-        description: form.querySelector('#taskDesc').value,
-        subject: form.querySelector('#taskSubject').value || null,
-        deadline: form.querySelector('#taskDeadline').value,
-        priority: form.querySelector('#taskPriority').value,
-        status: form.querySelector('#taskStatus')?.value || 'pending',
-    };
+    const submitBtn = document.getElementById('taskSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const formData = new FormData(form);
+    if (taskId) {
+        formData.append('_method', 'PUT');
+    }
 
     const url = taskId ? `/tasks/${taskId}` : '/tasks';
-    const method = taskId ? 'PUT' : 'POST';
 
-    const result = await apiRequest(url, method, data);
-    if (result.success) {
-        closeModal();
-        location.reload();
+    try {
+        const result = await apiFormRequest(url, formData);
+        if (result.success) {
+            closeModal();
+            location.reload();
+        } else if (result.errors) {
+            alert(Object.values(result.errors).flat().join('\n'));
+        }
+    } catch (err) {
+        alert('Gagal menyimpan tugas. Periksa ukuran file atau koneksi.');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 };
 
@@ -237,8 +344,25 @@ window.openNoteModal = function(note = null) {
         `<div class="color-option ${c === currentColor ? 'selected' : ''}" style="background: ${c}" data-color="${c}" onclick="selectNoteColor('${c}')"></div>`
     ).join('');
 
+    let existingFileHtml = '';
+    if (isEdit && note.file_path) {
+        existingFileHtml = `
+            <div class="existing-file-card" id="noteExistingFile">
+                <div class="existing-file-info">
+                    <span>${getFileIcon(note.file_type)}</span>
+                    <a href="${note.file_url}" target="_blank" class="existing-file-name" title="${escapeHtml(note.file_name)}">${escapeHtml(note.file_name)}</a>
+                    <span class="file-selected-size">(${note.formatted_file_size || ''})</span>
+                </div>
+                <div class="existing-file-actions">
+                    <button type="button" class="btn-remove-file" onclick="removeExistingFile('noteExistingFile', 'noteRemoveFile')">Hapus File</button>
+                </div>
+            </div>
+            <input type="hidden" name="remove_file" id="noteRemoveFile" value="0">
+        `;
+    }
+
     const html = `
-        <form id="noteForm" onsubmit="submitNote(event, ${isEdit ? note.id : 'null'})">
+        <form id="noteForm" onsubmit="submitNote(event, ${isEdit ? note.id : 'null'})" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label" for="noteTitle">Judul *</label>
                 <input type="text" class="form-input" id="noteTitle" name="title" value="${isEdit ? escapeHtml(note.title) : ''}" required placeholder="Judul catatan...">
@@ -258,9 +382,34 @@ window.openNoteModal = function(note = null) {
                     <input type="hidden" id="noteColor" name="color" value="${currentColor}">
                 </div>
             </div>
+
+            <div class="form-group">
+                <label class="form-label">Lampiran File (PDF, Word, Gambar, dll)</label>
+                ${existingFileHtml}
+                <div class="file-upload-zone">
+                    <input type="file" id="noteFileInput" name="file" onchange="handleFileSelect(this, 'noteSelectedInfo')">
+                    <div class="file-upload-label">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>${isEdit && note.file_path ? 'Pilih file baru untuk mengganti' : 'Klik atau seret file ke sini (Maks 50MB)'}</span>
+                    </div>
+                </div>
+                <div class="file-selected-info" id="noteSelectedInfo">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>📎</span>
+                        <span class="file-selected-name"></span>
+                        <span class="file-selected-size"></span>
+                    </div>
+                    <button type="button" class="file-remove-btn" onclick="clearSelectedFile('noteFileInput', 'noteSelectedInfo')" title="Batal pilih file">&times;</button>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
-                <button type="submit" class="btn-primary">${isEdit ? 'Simpan' : 'Tambah'}</button>
+                <button type="submit" class="btn-primary" id="noteSubmitBtn">${isEdit ? 'Simpan' : 'Tambah'}</button>
             </div>
         </form>
     `;
@@ -280,20 +429,28 @@ window.editNote = function(id, note) {
 window.submitNote = async function(e, noteId) {
     e.preventDefault();
     const form = document.getElementById('noteForm');
-    const data = {
-        title: form.querySelector('#noteTitle').value,
-        content: form.querySelector('#noteContent').value,
-        color: form.querySelector('#noteColor').value,
-        note_date: form.querySelector('#noteDate').value || null,
-    };
+    const submitBtn = document.getElementById('noteSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const formData = new FormData(form);
+    if (noteId) {
+        formData.append('_method', 'PUT');
+    }
 
     const url = noteId ? `/notes/${noteId}` : '/notes';
-    const method = noteId ? 'PUT' : 'POST';
 
-    const result = await apiRequest(url, method, data);
-    if (result.success) {
-        closeModal();
-        location.reload();
+    try {
+        const result = await apiFormRequest(url, formData);
+        if (result.success) {
+            closeModal();
+            location.reload();
+        } else if (result.errors) {
+            alert(Object.values(result.errors).flat().join('\n'));
+        }
+    } catch (err) {
+        alert('Gagal menyimpan catatan. Periksa ukuran file atau koneksi.');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 };
 
@@ -321,8 +478,25 @@ window.openEventModal = function(event = null) {
     const isEdit = !!event;
     const title = isEdit ? 'Edit Acara' : 'Acara Baru';
 
+    let existingFileHtml = '';
+    if (isEdit && event.file_path) {
+        existingFileHtml = `
+            <div class="existing-file-card" id="eventExistingFile">
+                <div class="existing-file-info">
+                    <span>${getFileIcon(event.file_type)}</span>
+                    <a href="${event.file_url}" target="_blank" class="existing-file-name" title="${escapeHtml(event.file_name)}">${escapeHtml(event.file_name)}</a>
+                    <span class="file-selected-size">(${event.formatted_file_size || ''})</span>
+                </div>
+                <div class="existing-file-actions">
+                    <button type="button" class="btn-remove-file" onclick="removeExistingFile('eventExistingFile', 'eventRemoveFile')">Hapus File</button>
+                </div>
+            </div>
+            <input type="hidden" name="remove_file" id="eventRemoveFile" value="0">
+        `;
+    }
+
     const html = `
-        <form id="eventForm" onsubmit="submitEvent(event, ${isEdit ? event.id : 'null'})">
+        <form id="eventForm" onsubmit="submitEvent(event, ${isEdit ? event.id : 'null'})" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label" for="eventTitle">Judul *</label>
                 <input type="text" class="form-input" id="eventTitle" name="title" value="${isEdit ? escapeHtml(event.title) : ''}" required placeholder="Nama acara...">
@@ -357,9 +531,34 @@ window.openEventModal = function(event = null) {
                     <input type="datetime-local" class="form-input" id="eventEnd" name="end_date" value="${isEdit && event.end_date ? formatDatetimeLocal(event.end_date) : ''}">
                 </div>
             </div>
+
+            <div class="form-group">
+                <label class="form-label">Lampiran File (PDF, Word, Gambar, dll)</label>
+                ${existingFileHtml}
+                <div class="file-upload-zone">
+                    <input type="file" id="eventFileInput" name="file" onchange="handleFileSelect(this, 'eventSelectedInfo')">
+                    <div class="file-upload-label">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>${isEdit && event.file_path ? 'Pilih file baru untuk mengganti' : 'Klik atau seret file ke sini (Maks 50MB)'}</span>
+                    </div>
+                </div>
+                <div class="file-selected-info" id="eventSelectedInfo">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>📎</span>
+                        <span class="file-selected-name"></span>
+                        <span class="file-selected-size"></span>
+                    </div>
+                    <button type="button" class="file-remove-btn" onclick="clearSelectedFile('eventFileInput', 'eventSelectedInfo')" title="Batal pilih file">&times;</button>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
-                <button type="submit" class="btn-primary">${isEdit ? 'Simpan' : 'Tambah'}</button>
+                <button type="submit" class="btn-primary" id="eventSubmitBtn">${isEdit ? 'Simpan' : 'Tambah'}</button>
             </div>
         </form>
     `;
@@ -373,22 +572,28 @@ window.editEvent = function(id, event) {
 window.submitEvent = async function(e, eventId) {
     e.preventDefault();
     const form = document.getElementById('eventForm');
-    const data = {
-        title: form.querySelector('#eventTitle').value,
-        description: form.querySelector('#eventDesc').value,
-        location: form.querySelector('#eventLocation').value || null,
-        category: form.querySelector('#eventCategory').value,
-        start_date: form.querySelector('#eventStart').value,
-        end_date: form.querySelector('#eventEnd').value || null,
-    };
+    const submitBtn = document.getElementById('eventSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const formData = new FormData(form);
+    if (eventId) {
+        formData.append('_method', 'PUT');
+    }
 
     const url = eventId ? `/events/${eventId}` : '/events';
-    const method = eventId ? 'PUT' : 'POST';
 
-    const result = await apiRequest(url, method, data);
-    if (result.success) {
-        closeModal();
-        location.reload();
+    try {
+        const result = await apiFormRequest(url, formData);
+        if (result.success) {
+            closeModal();
+            location.reload();
+        } else if (result.errors) {
+            alert(Object.values(result.errors).flat().join('\n'));
+        }
+    } catch (err) {
+        alert('Gagal menyimpan acara. Periksa ukuran file atau koneksi.');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 };
 
@@ -443,7 +648,6 @@ async function loadCalendar() {
     document.getElementById('calMonthTitle').textContent =
         `${monthNames[currentMonth]} ${currentYear}`;
 
-    // Fetch data
     try {
         const res = await fetch(`/calendar-data?year=${currentYear}&month=${currentMonth + 1}`, {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() }
@@ -544,9 +748,18 @@ function openDayDetail(dateStr, day) {
         if (tasks.length > 0) {
             html += '<div class="day-detail-section"><h4>📋 Tugas (' + tasks.length + ')</h4>';
             tasks.forEach(t => {
+                const fileHtml = t.file_path ? `
+                    <div style="margin-top: 4px;">
+                        <a href="${t.file_url}" target="_blank" class="attachment-pill type-${t.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
+                            <span class="att-icon">${getFileIcon(t.file_type)}</span>
+                            <span class="att-name">${escapeHtml(t.file_name)}</span>
+                        </a>
+                    </div>` : '';
+
                 html += `<div class="day-detail-item" style="border-left-color: var(--priority-${t.priority})">
                     <div class="item-title">${escapeHtml(t.title)}</div>
                     <div class="item-meta">${t.subject || ''} · ${t.priority} · ${t.status}</div>
+                    ${fileHtml}
                 </div>`;
             });
             html += '</div>';
@@ -554,9 +767,18 @@ function openDayDetail(dateStr, day) {
         if (events.length > 0) {
             html += '<div class="day-detail-section"><h4>🗓️ Acara (' + events.length + ')</h4>';
             events.forEach(e => {
+                const fileHtml = e.file_path ? `
+                    <div style="margin-top: 4px;">
+                        <a href="${e.file_url}" target="_blank" class="attachment-pill type-${e.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
+                            <span class="att-icon">${getFileIcon(e.file_type)}</span>
+                            <span class="att-name">${escapeHtml(e.file_name)}</span>
+                        </a>
+                    </div>` : '';
+
                 html += `<div class="day-detail-item" style="border-left-color: var(--cat-${e.category})">
                     <div class="item-title">${escapeHtml(e.title)}</div>
                     <div class="item-meta">${e.category}${e.location ? ' · ' + e.location : ''}</div>
+                    ${fileHtml}
                 </div>`;
             });
             html += '</div>';
@@ -564,8 +786,17 @@ function openDayDetail(dateStr, day) {
         if (notes.length > 0) {
             html += '<div class="day-detail-section"><h4>📌 Catatan (' + notes.length + ')</h4>';
             notes.forEach(n => {
+                const fileHtml = n.file_path ? `
+                    <div style="margin-top: 4px;">
+                        <a href="${n.file_url}" target="_blank" class="attachment-pill type-${n.file_type || 'file'}" style="margin: 0; padding: 2px 8px; font-size: 11px;">
+                            <span class="att-icon">${getFileIcon(n.file_type)}</span>
+                            <span class="att-name">${escapeHtml(n.file_name)}</span>
+                        </a>
+                    </div>` : '';
+
                 html += `<div class="day-detail-item" style="border-left-color: ${n.color || '#6366f1'}">
                     <div class="item-title">${escapeHtml(n.title)}</div>
+                    ${fileHtml}
                 </div>`;
             });
             html += '</div>';
@@ -573,10 +804,7 @@ function openDayDetail(dateStr, day) {
     }
 
     contentEl.innerHTML = html;
-
-    // Remove selected from all days
     document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
-
     panel.classList.add('open');
 }
 
@@ -585,9 +813,7 @@ function initPinpad() {
     const numpad = document.getElementById('numpad');
     if (!numpad) return;
 
-    // Detect setup vs login
     const isSetup = !!document.getElementById('pinSetupForm');
-
     if (isSetup) {
         initSetupPinpad();
     } else {
@@ -612,14 +838,12 @@ function initLoginPinpad() {
                 pin += val;
             }
 
-            // Update dots
             dots.forEach((dot, i) => {
                 dot.classList.toggle('filled', i < pin.length);
             });
 
             hiddenInput.value = pin;
 
-            // Auto submit when 6 digits
             if (pin.length === maxLen) {
                 setTimeout(() => form.submit(), 200);
             }
@@ -630,7 +854,7 @@ function initLoginPinpad() {
 function initSetupPinpad() {
     let pin = '';
     let confirmPin = '';
-    let activeField = 'pin'; // 'pin' or 'confirm'
+    let activeField = 'pin';
     const maxLen = 6;
     const pinDots = document.querySelectorAll('#pinDotsSetup .pin-dot');
     const confirmDots = document.querySelectorAll('#pinDotsConfirm .pin-dot');
@@ -638,7 +862,6 @@ function initSetupPinpad() {
     const confirmInput = document.getElementById('pinConfirmInput');
     const submitBtn = document.getElementById('setupSubmitBtn');
 
-    // Click on pin dots to switch active field
     document.getElementById('pinDotsSetup')?.addEventListener('click', () => {
         activeField = 'pin';
         highlightActiveDots();
@@ -681,7 +904,6 @@ function initSetupPinpad() {
                 confirmInput.value = confirmPin;
             }
 
-            // Enable submit when both are filled
             submitBtn.disabled = !(pin.length === maxLen && confirmPin.length === maxLen);
         });
     });

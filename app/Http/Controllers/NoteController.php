@@ -31,7 +31,17 @@ class NoteController extends Controller
             'content' => 'nullable|string',
             'color' => 'nullable|string|max:7',
             'note_date' => 'nullable|date',
+            'file' => 'nullable|file|max:51200',
         ]);
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $validated['file_path'] = $file->store('uploads/notes', 'public');
+            $validated['file_name'] = $file->getClientOriginalName();
+            $validated['file_size'] = $file->getSize();
+        }
+
+        unset($validated['file']);
 
         $note = Note::create($validated);
 
@@ -48,7 +58,24 @@ class NoteController extends Controller
             'content' => 'nullable|string',
             'color' => 'nullable|string|max:7',
             'note_date' => 'nullable|date',
+            'file' => 'nullable|file|max:51200',
+            'remove_file' => 'nullable|in:true,false,1,0',
         ]);
+
+        if ($request->hasFile('file')) {
+            $note->deleteAttachmentFile();
+            $file = $request->file('file');
+            $validated['file_path'] = $file->store('uploads/notes', 'public');
+            $validated['file_name'] = $file->getClientOriginalName();
+            $validated['file_size'] = $file->getSize();
+        } elseif ($request->boolean('remove_file')) {
+            $note->deleteAttachmentFile();
+            $validated['file_path'] = null;
+            $validated['file_name'] = null;
+            $validated['file_size'] = null;
+        }
+
+        unset($validated['file'], $validated['remove_file']);
 
         $note->update($validated);
 

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAttachment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Note extends Model
 {
+    use HasAttachment;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -18,6 +21,21 @@ class Note extends Model
         'color',
         'is_pinned',
         'note_date',
+        'file_path',
+        'file_name',
+        'file_size',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'file_url',
+        'formatted_file_size',
+        'file_extension',
+        'file_type',
     ];
 
     /**
@@ -30,6 +48,7 @@ class Note extends Model
         return [
             'is_pinned' => 'boolean',
             'note_date' => 'date',
+            'file_size' => 'integer',
         ];
     }
 

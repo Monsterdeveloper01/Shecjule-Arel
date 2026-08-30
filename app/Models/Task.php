@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAttachment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
+    use HasAttachment;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -19,6 +22,21 @@ class Task extends Model
         'deadline',
         'priority',
         'status',
+        'file_path',
+        'file_name',
+        'file_size',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'file_url',
+        'formatted_file_size',
+        'file_extension',
+        'file_type',
     ];
 
     /**
@@ -30,6 +48,7 @@ class Task extends Model
     {
         return [
             'deadline' => 'datetime',
+            'file_size' => 'integer',
         ];
     }
 

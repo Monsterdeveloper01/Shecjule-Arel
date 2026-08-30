@@ -128,9 +128,14 @@
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
                             <span class="task-mini-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</span>
-                            @if($task->subject)
-                            <span class="task-mini-subject">{{ $task->subject }}</span>
-                            @endif
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                @if($task->subject)
+                                <span class="task-mini-subject">{{ $task->subject }}</span>
+                                @endif
+                                @if($task->file_path)
+                                <a href="{{ $task->file_url }}" target="_blank" title="{{ $task->file_name }}" style="font-size: 11px; text-decoration: none; color: var(--text-secondary);">📎 File</a>
+                                @endif
+                            </div>
                         </div>
                         <button class="task-toggle-btn" data-task-id="{{ $task->id }}" data-status="{{ $task->status }}" aria-label="Toggle status">
                             @if($task->status === 'completed')
@@ -164,7 +169,12 @@
                         <span class="event-category-dot category-{{ $event->category }}"></span>
                         <div class="event-mini-info">
                             <span class="event-mini-title">{{ $event->title }}</span>
-                            <span class="event-mini-time">{{ $event->start_date->format('H:i') }}@if($event->location) · {{ $event->location }}@endif</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="event-mini-time">{{ $event->start_date->format('H:i') }}@if($event->location) · {{ $event->location }}@endif</span>
+                                @if($event->file_path)
+                                <a href="{{ $event->file_url }}" target="_blank" title="{{ $event->file_name }}" style="font-size: 11px; text-decoration: none; color: var(--text-secondary);">📎 File</a>
+                                @endif
+                            </div>
                         </div>
                     </div>
                     @endforeach

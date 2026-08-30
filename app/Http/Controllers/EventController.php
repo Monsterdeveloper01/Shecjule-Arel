@@ -37,7 +37,17 @@ class EventController extends Controller
             'category' => 'required|in:kuliah,ujian,seminar,organisasi,pribadi',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
+            'file' => 'nullable|file|max:51200',
         ]);
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $validated['file_path'] = $file->store('uploads/events', 'public');
+            $validated['file_name'] = $file->getClientOriginalName();
+            $validated['file_size'] = $file->getSize();
+        }
+
+        unset($validated['file']);
 
         $event = Event::create($validated);
 
@@ -56,7 +66,24 @@ class EventController extends Controller
             'category' => 'required|in:kuliah,ujian,seminar,organisasi,pribadi',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
+            'file' => 'nullable|file|max:51200',
+            'remove_file' => 'nullable|in:true,false,1,0',
         ]);
+
+        if ($request->hasFile('file')) {
+            $event->deleteAttachmentFile();
+            $file = $request->file('file');
+            $validated['file_path'] = $file->store('uploads/events', 'public');
+            $validated['file_name'] = $file->getClientOriginalName();
+            $validated['file_size'] = $file->getSize();
+        } elseif ($request->boolean('remove_file')) {
+            $event->deleteAttachmentFile();
+            $validated['file_path'] = null;
+            $validated['file_name'] = null;
+            $validated['file_size'] = null;
+        }
+
+        unset($validated['file'], $validated['remove_file']);
 
         $event->update($validated);
 

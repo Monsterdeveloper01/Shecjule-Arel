@@ -51,7 +51,17 @@ class TaskController extends Controller
             'deadline' => 'required|date',
             'priority' => 'required|in:urgent,high,medium,low',
             'status' => 'nullable|in:pending,in_progress,completed',
+            'file' => 'nullable|file|max:51200',
         ]);
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $validated['file_path'] = $file->store('uploads/tasks', 'public');
+            $validated['file_name'] = $file->getClientOriginalName();
+            $validated['file_size'] = $file->getSize();
+        }
+
+        unset($validated['file']);
 
         $task = Task::create($validated);
 
@@ -70,7 +80,24 @@ class TaskController extends Controller
             'deadline' => 'required|date',
             'priority' => 'required|in:urgent,high,medium,low',
             'status' => 'nullable|in:pending,in_progress,completed',
+            'file' => 'nullable|file|max:51200',
+            'remove_file' => 'nullable|in:true,false,1,0',
         ]);
+
+        if ($request->hasFile('file')) {
+            $task->deleteAttachmentFile();
+            $file = $request->file('file');
+            $validated['file_path'] = $file->store('uploads/tasks', 'public');
+            $validated['file_name'] = $file->getClientOriginalName();
+            $validated['file_size'] = $file->getSize();
+        } elseif ($request->boolean('remove_file')) {
+            $task->deleteAttachmentFile();
+            $validated['file_path'] = null;
+            $validated['file_name'] = null;
+            $validated['file_size'] = null;
+        }
+
+        unset($validated['file'], $validated['remove_file']);
 
         $task->update($validated);
 
