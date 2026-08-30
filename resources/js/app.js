@@ -1,5 +1,5 @@
 // ===========================
-// SHECJUL — Main JavaScript
+// SCHEDULE — Main JavaScript
 // Calendar, Modals, CRUD, PIN
 // ===========================
 
