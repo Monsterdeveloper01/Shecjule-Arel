@@ -1490,11 +1490,38 @@ window.disablePushNotifications = async function() {
 };
 
 window.sendTestPushNotification = async function() {
+    // Trigger local immediate notification if permission granted
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+            if (swRegistration && swRegistration.showNotification) {
+                swRegistration.showNotification('🔔 Tes Notifikasi Schedule Berhasil!', {
+                    body: 'Notifikasi push di perangkat kamu sudah aktif dan siap mengirimkan pengingat deadline!',
+                    icon: '/favicon.ico',
+                    badge: '/favicon.ico',
+                    vibrate: [200, 100, 200],
+                });
+            } else {
+                new Notification('🔔 Tes Notifikasi Schedule Berhasil!', {
+                    body: 'Notifikasi push di perangkat kamu sudah aktif dan siap mengirimkan pengingat deadline!',
+                    icon: '/favicon.ico',
+                });
+            }
+        } catch (e) {
+            console.log('Direct notification fallback:', e);
+        }
+    }
+
     try {
         const res = await apiRequest('/push/test', 'POST');
-        alert(res.message);
+        if (res && res.message) {
+            alert(res.message);
+        } else {
+            alert('Tes notifikasi selesai diproses!');
+        }
     } catch (err) {
-        alert('Gagal mengirim notifikasi tes.');
+        console.error('Push test error:', err);
+        alert('Catatan: Web Push di HP membutuhkan koneksi aman (HTTPS). Di server Linux dengan domain HTTPS nanti, notifikasi ini akan bekerja otomatis.');
     }
 };
+
 

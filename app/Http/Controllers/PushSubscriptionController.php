@@ -6,6 +6,7 @@ use App\Models\PushSubscription;
 use App\Services\WebPushService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 class PushSubscriptionController extends Controller
 {
@@ -14,9 +15,17 @@ class PushSubscriptionController extends Controller
      */
     public function vapidPublicKey(WebPushService $pushService): JsonResponse
     {
-        return response()->json([
-            'publicKey' => $pushService->getPublicKey(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'publicKey' => $pushService->getPublicKey(),
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -24,27 +33,34 @@ class PushSubscriptionController extends Controller
      */
     public function subscribe(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'endpoint' => 'required|string',
-            'keys.p256dh' => 'nullable|string',
-            'keys.auth' => 'nullable|string',
-            'contentEncoding' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'endpoint' => 'required|string',
+                'keys.p256dh' => 'nullable|string',
+                'keys.auth' => 'nullable|string',
+                'contentEncoding' => 'nullable|string',
+            ]);
 
-        $sub = PushSubscription::updateOrCreate(
-            ['endpoint' => $validated['endpoint']],
-            [
-                'public_key' => $validated['keys']['p256dh'] ?? null,
-                'auth_token' => $validated['keys']['auth'] ?? null,
-                'content_encoding' => $validated['contentEncoding'] ?? 'aesgcm',
-            ]
-        );
+            $sub = PushSubscription::updateOrCreate(
+                ['endpoint' => $validated['endpoint']],
+                [
+                    'public_key' => $validated['keys']['p256dh'] ?? null,
+                    'auth_token' => $validated['keys']['auth'] ?? null,
+                    'content_encoding' => $validated['contentEncoding'] ?? 'aesgcm',
+                ]
+            );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Berhasil berlangganan notifikasi!',
-            'subscription_id' => $sub->id,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil mendaftarkan perangkat untuk notifikasi!',
+                'subscription_id' => $sub->id,
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan subscription: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -52,16 +68,23 @@ class PushSubscriptionController extends Controller
      */
     public function unsubscribe(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'endpoint' => 'required|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'endpoint' => 'required|string',
+            ]);
 
-        PushSubscription::where('endpoint', $validated['endpoint'])->delete();
+            PushSubscription::where('endpoint', $validated['endpoint'])->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Berhasil berhenti berlangganan notifikasi.',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil berhenti berlangganan notifikasi.',
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -69,20 +92,35 @@ class PushSubscriptionController extends Controller
      */
     public function sendTest(WebPushService $pushService): JsonResponse
     {
-        $count = $pushService->sendNotification(
-            '🔔 Tes Notifikasi Schedule Berhasil!',
-            'Notifikasi push di HP kamu sudah aktif dan siap mengirimkan pengingat deadline.',
-            '/',
-            'test-'.time()
-        );
+        try {
+            $count = $pushService->sendNotification(
+                '🔔 Tes Notifikasi Schedule Berhasil!',
+                'Notifikasi push di HP kamu sudah aktif dan siap mengirimkan pengingat deadline!',
+                '/',
+                'test-'.time()
+            );
 
-        return response()->json([
-            'success' => true,
-            'sent_count' => $count,
-            'message' => $count > 0
-                ? "Notifikasi berhasil dikirim ke {$count} perangkat!"
-                : 'Belum ada perangkat yang terdaftar atau aktif.',
-        ]);
+            $totalSubscribers = PushSubscription::count();
+
+            if ($totalSubscribers === 0) {
+                return response()->json([
+                    'success' => true,
+                    'sent_count' => 0,
+                    'message' => 'Belum ada perangkat yang terdaftar. Klik "Aktifkan Notifikasi di Perangkat Ini" terlebih dahulu ya!',
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'sent_count' => $count,
+                'message' => "Notifikasi berhasil dikirim ke {$count} dari {$totalSubscribers} perangkat terdaftar!",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengirim notifikasi: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -90,12 +128,19 @@ class PushSubscriptionController extends Controller
      */
     public function checkDeadlines(WebPushService $pushService): JsonResponse
     {
-        $sentCount = $pushService->checkAndSendDeadlineAlerts();
+        try {
+            $sentCount = $pushService->checkAndSendDeadlineAlerts();
 
-        return response()->json([
-            'success' => true,
-            'sent_count' => $sentCount,
-            'message' => "Pemeriksaan selesai. {$sentCount} notifikasi terkirim.",
-        ]);
+            return response()->json([
+                'success' => true,
+                'sent_count' => $sentCount,
+                'message' => "Pemeriksaan selesai. {$sentCount} notifikasi terkirim.",
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: '.$e->getMessage(),
+            ], 500);
+        }
     }
 }
