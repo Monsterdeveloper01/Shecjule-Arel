@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CourseScheduleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\NoteController;
@@ -27,6 +28,8 @@ Route::middleware('pin.auth')->group(function () {
 
     Route::resource('tasks', TaskController::class)->except(['create', 'show', 'edit']);
     Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggleStatus'])->name('tasks.toggle');
+
+    Route::resource('schedules', CourseScheduleController::class)->except(['create', 'show', 'edit']);
 
     Route::resource('notes', NoteController::class)->except(['create', 'show', 'edit']);
     Route::patch('/notes/{note}/pin', [NoteController::class, 'togglePin'])->name('notes.pin');

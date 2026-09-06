@@ -126,6 +126,50 @@
             </div>
             @endif
 
+            {{-- Today Course Schedules --}}
+            <div class="today-section glass-card schedule-today-card">
+                <div class="section-title-wrap" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="section-title" style="margin-bottom: 0;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                        </svg>
+                        Kuliah Hari Ini ({{ $todaySchedules->count() }})
+                    </h3>
+                    <a href="{{ route('schedules.index') }}" class="section-link-more" style="font-size: 12px; color: #ef4444; text-decoration: none; font-weight: 600;">Lihat Matrix ➔</a>
+                </div>
+
+                @if($todaySchedules->count() > 0)
+                <div class="schedule-list-mini" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                    @foreach($todaySchedules as $cs)
+                    <div class="schedule-item-mini theme-{{ $cs->color_tag ?? 'red' }} {{ $cs->is_ongoing_now ? 'mini-ongoing' : '' }}" style="background: var(--bg-tertiary); padding: 10px 12px; border-radius: var(--radius-md); border-left: 3px solid #ef4444; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <strong style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">{{ $cs->course_name }}</strong>
+                                @if($cs->is_ongoing_now)
+                                    <span style="background: #ef4444; color: white; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; animation: pulse 2s infinite;">LIVE</span>
+                                @endif
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); display: flex; gap: 8px;">
+                                <span>⏰ {{ $cs->start_time_formatted }} - {{ $cs->end_time_formatted }}</span>
+                                @if($cs->room)
+                                    <span>📍 {{ $cs->room }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        @if($cs->meeting_link)
+                            <a href="{{ $cs->meeting_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link-action" style="padding: 4px 8px; font-size: 11px;" title="Buka Link Kuliah">Zoom</a>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                <p class="empty-mini" style="margin-top: 10px;">✨ Tidak ada jadwal kuliah hari ini</p>
+                @endif
+            </div>
+
             {{-- Today Tasks --}}
             <div class="today-section glass-card">
                 <h3 class="section-title">

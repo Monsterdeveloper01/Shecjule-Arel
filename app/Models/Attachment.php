@@ -65,16 +65,13 @@ class Attachment extends Model
         return $this->morphTo();
     }
 
-    /**
-     * Get public URL for the file.
-     */
     public function getFileUrlAttribute(): ?string
     {
         if (! $this->file_path) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->file_path);
+        return asset('storage/'.ltrim($this->file_path, '/'));
     }
 
     /**

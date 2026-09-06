@@ -254,6 +254,11 @@ function initFAB() {
         fabMenu.classList.remove('open');
         openEventModal();
     });
+    document.getElementById('fabAddSchedule')?.addEventListener('click', () => {
+        fabBtn.classList.remove('open');
+        fabMenu.classList.remove('open');
+        openScheduleModal();
+    });
 }
 
 // ===== MODAL =====
@@ -1523,5 +1528,279 @@ window.sendTestPushNotification = async function() {
         alert('Catatan: Web Push di HP membutuhkan koneksi aman (HTTPS). Di server Linux dengan domain HTTPS nanti, notifikasi ini akan bekerja otomatis.');
     }
 };
+
+// ==========================================
+// COURSE SCHEDULE CRUD & TIMETABLE MATRIX JS
+// ==========================================
+
+window.setScheduleTimePreset = function(start, end) {
+    const startInput = document.getElementById('scheduleStartTime');
+    const endInput = document.getElementById('scheduleEndTime');
+    if (startInput) startInput.value = start;
+    if (endInput) endInput.value = end;
+};
+
+window.selectScheduleColor = function(color) {
+    const input = document.getElementById('scheduleColorTag');
+    if (input) input.value = color;
+
+    document.querySelectorAll('.color-option').forEach(el => {
+        if (el.dataset.color === color) {
+            el.classList.add('selected');
+        } else {
+            el.classList.remove('selected');
+        }
+    });
+};
+
+window.openScheduleModal = function(schedule = null) {
+    const isEdit = !!schedule;
+    const title = isEdit ? 'Edit Mata Kuliah' : 'Tambah Mata Kuliah Baru';
+    const attachments = schedule?.attachments || [];
+    const existingFilesHtml = isEdit ? buildExistingAttachmentsHtml(attachments) : '';
+
+    const selectedColor = schedule?.color_tag || 'red';
+    const startTimeVal = schedule?.start_time ? schedule.start_time.substring(0, 5) : '07:30';
+    const endTimeVal = schedule?.end_time ? schedule.end_time.substring(0, 5) : '10:30';
+    const currentDay = schedule?.day_of_week || 1;
+
+    const colors = [
+        { key: 'red', hex: '#ef4444' },
+        { key: 'indigo', hex: '#6366f1' },
+        { key: 'blue', hex: '#3b82f6' },
+        { key: 'emerald', hex: '#10b981' },
+        { key: 'amber', hex: '#f59e0b' },
+        { key: 'purple', hex: '#a855f7' },
+        { key: 'rose', hex: '#f43f5e' },
+        { key: 'cyan', hex: '#06b6d4' },
+    ];
+
+    const colorPickerHtml = colors.map(c => `
+        <div class="color-option ${c.key === selectedColor ? 'selected' : ''}" 
+             data-color="${c.key}" 
+             style="background: ${c.hex};" 
+             onclick="selectScheduleColor('${c.key}')" 
+             title="Warna ${c.key}"></div>
+    `).join('');
+
+    const html = `
+        <form id="scheduleForm" onsubmit="submitSchedule(event, ${isEdit ? schedule.id : 'null'})" enctype="multipart/form-data">
+            <div class="form-group">
+                <label class="form-label" for="scheduleCourseName">Nama Mata Kuliah *</label>
+                <input type="text" class="form-input" id="scheduleCourseName" name="course_name" value="${isEdit ? escapeHtml(schedule.course_name) : ''}" required placeholder="Contoh: Rekayasa Perangkat Lunak">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="scheduleCourseCode">Kode Matkul</label>
+                    <input type="text" class="form-input" id="scheduleCourseCode" name="course_code" value="${isEdit && schedule.course_code ? escapeHtml(schedule.course_code) : ''}" placeholder="Contoh: ISG2A3">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="scheduleClassCode">Kode Kelas</label>
+                    <input type="text" class="form-input" id="scheduleClassCode" name="class_code" value="${isEdit && schedule.class_code ? escapeHtml(schedule.class_code) : ''}" placeholder="Contoh: SI-47-01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="scheduleSks">SKS *</label>
+                    <select class="form-select" id="scheduleSks" name="sks" required>
+                        <option value="1" ${isEdit && schedule.sks === 1 ? 'selected' : ''}>1 SKS</option>
+                        <option value="2" ${isEdit && schedule.sks === 2 ? 'selected' : ''}>2 SKS</option>
+                        <option value="3" ${!isEdit || schedule.sks === 3 ? 'selected' : ''}>3 SKS</option>
+                        <option value="4" ${isEdit && schedule.sks === 4 ? 'selected' : ''}>4 SKS</option>
+                        <option value="6" ${isEdit && schedule.sks === 6 ? 'selected' : ''}>6 SKS (Tugas Akhir)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="scheduleLecturer">Dosen Pengampu & Kode Dosen</label>
+                <input type="text" class="form-input" id="scheduleLecturer" name="lecturer_name" value="${isEdit && schedule.lecturer_name ? escapeHtml(schedule.lecturer_name) : ''}" placeholder="Contoh: Dr. Ir. Budi Santoso, M.Kom / BDS">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="scheduleDayOfWeek">Hari Perkuliahan *</label>
+                    <select class="form-select" id="scheduleDayOfWeek" name="day_of_week" required>
+                        <option value="1" ${currentDay === 1 ? 'selected' : ''}>Senin</option>
+                        <option value="2" ${currentDay === 2 ? 'selected' : ''}>Selasa</option>
+                        <option value="3" ${currentDay === 3 ? 'selected' : ''}>Rabu</option>
+                        <option value="4" ${currentDay === 4 ? 'selected' : ''}>Kamis</option>
+                        <option value="5" ${currentDay === 5 ? 'selected' : ''}>Jumat</option>
+                        <option value="6" ${currentDay === 6 ? 'selected' : ''}>Sabtu</option>
+                        <option value="7" ${currentDay === 7 ? 'selected' : ''}>Minggu</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="scheduleDeliveryMode">Mode Kuliah *</label>
+                    <select class="form-select" id="scheduleDeliveryMode" name="delivery_mode" required>
+                        <option value="offline" ${!isEdit || schedule.delivery_mode === 'offline' ? 'selected' : ''}>🏛️ Tatap Muka (Offline)</option>
+                        <option value="online" ${isEdit && schedule.delivery_mode === 'online' ? 'selected' : ''}>🌐 Daring (Online / LMS)</option>
+                        <option value="hybrid" ${isEdit && schedule.delivery_mode === 'hybrid' ? 'selected' : ''}>🔀 Hybrid</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="scheduleStartTime">Jam Mulai *</label>
+                    <input type="time" class="form-input" id="scheduleStartTime" name="start_time" value="${startTimeVal}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="scheduleEndTime">Jam Selesai *</label>
+                    <input type="time" class="form-input" id="scheduleEndTime" name="end_time" value="${endTimeVal}" required>
+                </div>
+            </div>
+
+            {{-- Quick Presets for Telkom Univ Schedule Slots --}}
+            <div class="form-group">
+                <label class="form-label" style="font-size: 11px; color: var(--text-secondary);">⚡ Preset Jam Kuliah Telkom University:</label>
+                <div class="preset-time-pills">
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('06:30', '09:30')">06:30 - 09:30 (3 SKS)</button>
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('07:30', '10:30')">07:30 - 10:30 (3 SKS)</button>
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('09:30', '12:30')">09:30 - 12:30 (3 SKS)</button>
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('13:30', '16:30')">13:30 - 16:30 (3 SKS)</button>
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('15:30', '18:30')">15:30 - 18:30 (3 SKS)</button>
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('07:30', '09:30')">07:30 - 09:30 (2 SKS)</button>
+                    <button type="button" class="time-preset-btn" onclick="setScheduleTimePreset('13:30', '15:30')">13:30 - 15:30 (2 SKS)</button>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="scheduleRoom">Ruangan</label>
+                    <input type="text" class="form-input" id="scheduleRoom" name="room" value="${isEdit && schedule.room ? escapeHtml(schedule.room) : ''}" placeholder="Contoh: KU3.02.04 / TULT-0801">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="scheduleMeetingLink">Link Kuliah Online (Zoom / Meet / CeLOE)</label>
+                    <input type="url" class="form-input" id="scheduleMeetingLink" name="meeting_link" value="${isEdit && schedule.meeting_link ? escapeHtml(schedule.meeting_link) : ''}" placeholder="https://zoom.us/j/...">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Warna Aksen Jadwal</label>
+                <input type="hidden" name="color_tag" id="scheduleColorTag" value="${selectedColor}">
+                <div class="color-picker-group">
+                    ${colorPickerHtml}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="scheduleNotes">Catatan Tambahan</label>
+                <textarea class="form-textarea" id="scheduleNotes" name="notes" placeholder="Catatan aturan kelas, toleransi keterlambatan, software yang dibutuhkan...">${isEdit && schedule.notes ? escapeHtml(schedule.notes) : ''}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Lampiran RPS / Silabus / Kontrak Kuliah</label>
+                ${existingFilesHtml}
+                <div class="file-upload-zone" id="scheduleDropZone">
+                    <input type="file" id="scheduleFileInput" multiple>
+                    <div class="file-upload-label">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>${isEdit && attachments.length > 0 ? '+ Tambah / Tarik file silabus baru ke sini' : 'Tarik & Lepas file RPS/Silabus (PDF, DOCX) atau Klik untuk memilih'}</span>
+                    </div>
+                </div>
+                <div class="file-selected-list" id="scheduleSelectedList" style="display: none;"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
+                <button type="submit" class="btn-primary" id="scheduleSubmitBtn">${isEdit ? 'Simpan Perubahan' : 'Tambahkan Jadwal'}</button>
+            </div>
+        </form>
+    `;
+    openModal(title, html);
+    setupDropZone('scheduleDropZone', 'scheduleFileInput', 'scheduleSelectedList');
+};
+
+window.editSchedule = function(id, schedule) {
+    openScheduleModal(schedule);
+};
+
+window.submitSchedule = async function(e, scheduleId) {
+    e.preventDefault();
+    const form = document.getElementById('scheduleForm');
+    const submitBtn = document.getElementById('scheduleSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const formData = new FormData(form);
+
+    // Append queued files
+    window.activeUploadFiles.forEach(file => {
+        formData.append('files[]', file);
+    });
+
+    if (scheduleId) {
+        formData.append('_method', 'PUT');
+    }
+
+    const url = scheduleId ? `/schedules/${scheduleId}` : '/schedules';
+
+    try {
+        const result = await apiFormRequest(url, formData);
+        if (result.success) {
+            closeModal();
+            location.reload();
+        } else if (result.errors) {
+            alert(Object.values(result.errors).flat().join('\n'));
+        }
+    } catch (err) {
+        alert('Gagal menyimpan jadwal perkuliahan. Periksa format waktu dan koneksi.');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+};
+
+window.deleteSchedule = async function(scheduleId) {
+    if (!confirm('Yakin ingin menghapus mata kuliah ini dari jadwal?')) return;
+    const result = await apiRequest(`/schedules/${scheduleId}`, 'DELETE');
+    if (result.success) {
+        location.reload();
+    }
+};
+
+// Toast notification helper
+window.showToast = function(message, type = 'info') {
+    const existing = document.getElementById('appToast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'appToast';
+    toast.className = `app-toast toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #111118;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: 1px solid ${type === 'success' ? '#22c55e' : (type === 'error' ? '#ef4444' : '#6366f1')};
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 99999;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    }, 10);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+};
+
 
 

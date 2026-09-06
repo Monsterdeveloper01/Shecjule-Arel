@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CourseSchedule;
 use App\Models\Event;
 use App\Models\Note;
 use App\Models\Task;
@@ -21,6 +22,7 @@ class DashboardController extends Controller
         $todayTasks = Task::forDate($today)->orderBy('priority')->get();
         $todayEvents = Event::forDate($today)->orderBy('start_date')->get();
         $todayNotes = Note::forDate($today)->orderBy('is_pinned', 'desc')->get();
+        $todaySchedules = CourseSchedule::today()->with('attachments')->orderBy('start_time')->get();
 
         $overdueTasks = Task::overdue()->get();
         $upcomingTasks = Task::upcoming()->limit(5)->get();
@@ -32,12 +34,14 @@ class DashboardController extends Controller
                 ->where('updated_at', '>=', now()->startOfWeek())
                 ->count(),
             'overdue' => Task::overdue()->count(),
+            'today_classes' => $todaySchedules->count(),
         ];
 
         return view('dashboard', compact(
             'todayTasks',
             'todayEvents',
             'todayNotes',
+            'todaySchedules',
             'overdueTasks',
             'upcomingTasks',
             'stats',
