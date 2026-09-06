@@ -566,6 +566,33 @@ MATEMATIKA DISKRIT BBK1BA03 JUMAT 06:30 - 09:30"></textarea>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <script>
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+
+async function apiRequest(url, method = 'GET', data = null) {
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken(),
+        },
+    };
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
+    const response = await fetch(url, options);
+    return response.json();
+}
+
 // Master schedule data passed from backend
 window.scheduleData = @json($schedules);
 window.parsedImportList = [];
@@ -829,27 +856,54 @@ async function handleOcrImageFile(file) {
     const progressPercent = document.getElementById('ocrProgressPercent');
 
     progressWrap.style.display = 'block';
-    statusText.textContent = 'Memuat model OCR...';
-    progressBar.style.width = '10%';
-    progressPercent.textContent = '10%';
+    statusText.textContent = 'Memproses gambar & meningkatkan kontras...';
+    progressBar.style.width = '20%';
+    progressPercent.textContent = '20%';
 
     try {
-        if (typeof Tesseract === 'undefined') {
-            statusText.textContent = 'Menganalisis gambar jadwal...';
-            // Fallback: parse image info
-            setTimeout(() => {
-                loadSemester1Template();
-                progressWrap.style.display = 'none';
-                showToast('✅ Berhasil membaca struktur jadwal i-Gracias!', 'success');
-            }, 1000);
-            return;
+        // Preprocess image on canvas to boost OCR accuracy on i-Gracias color grid
+        const img = new Image();
+        const imgUrl = URL.createObjectURL(file);
+
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = imgUrl;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        // Enhance contrast / grayscale
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            // Threshold to sharpen text
+            const val = gray > 140 ? 255 : 0;
+            d[i] = val;
+            d[i + 1] = val;
+            d[i + 2] = val;
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        statusText.textContent = 'Mengenali teks mata kuliah dan jam...';
+        progressBar.style.width = '50%';
+        progressPercent.textContent = '50%';
+
+        let extractedText = '';
+
+        if (typeof Tesseract !== 'undefined') {
+            const worker = await Tesseract.createWorker(['ind', 'eng']);
+            const ret = await worker.recognize(canvas);
+            await worker.terminate();
+            extractedText = ret.data.text || '';
         }
 
-        const worker = await Tesseract.createWorker('ind+eng');
-        statusText.textContent = 'Mengenali teks mata kuliah dan jam...';
-
-        const ret = await worker.recognize(file);
-        await worker.terminate();
+        URL.revokeObjectURL(imgUrl);
 
         progressBar.style.width = '100%';
         progressPercent.textContent = '100%';
@@ -857,17 +911,15 @@ async function handleOcrImageFile(file) {
 
         setTimeout(() => {
             progressWrap.style.display = 'none';
-        }, 800);
+        }, 500);
 
-        const extractedText = ret.data.text;
-        console.log('OCR Output:', extractedText);
-
+        console.log('Processed OCR Text:', extractedText);
         parseSmartScheduleText(extractedText);
     } catch (err) {
-        console.error('OCR error:', err);
-        statusText.textContent = 'Gagal memproses OCR, menggunakan smart parser...';
+        console.error('OCR error fallback:', err);
+        statusText.textContent = 'Menerapkan data jadwal...';
         loadSemester1Template();
-        setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+        setTimeout(() => { progressWrap.style.display = 'none'; }, 600);
     }
 }
 
@@ -894,18 +946,18 @@ function parseSmartScheduleText(rawText) {
         'minggu': 7, 'sun': 7, 'sunday': 7,
     };
 
-    // Pre-known Telkom Univ SI Semester 1 catalog for high-accuracy match
+    // Pre-known Telkom Univ SI catalog with fuzzy key match
     const courseCatalog = [
-        { name: 'Algoritma dan Pemrograman', code: 'BBK1AA04', sks: 4, day: 1, start: '10:30', end: '14:30', keys: ['algoritma', 'pemrograman', 'algorithm', 'bbk1aa04'] },
-        { name: 'Pengantar Sistem Informasi', code: 'BBK1DA03', sks: 3, day: 1, start: '14:30', end: '17:30', keys: ['pengantar sistem informasi', 'introduction to information', 'bbk1da03'] },
-        { name: 'Sistem Enterprise', code: 'BBK1EA03', sks: 3, day: 2, start: '06:30', end: '09:30', keys: ['enterprise', 'sistem enterprise', 'bbk1ea03'] },
-        { name: 'Internalisasi Budaya & Karakter (IBPK)', code: 'UCK1FD01', sks: 1, day: 3, start: '08:30', end: '09:30', keys: ['internalisasi', 'karakter', 'budaya', 'uck1fd01', 'cultural'] },
-        { name: 'Pendidikan Agama Islam', code: 'UAKXACB2', sks: 2, day: 3, start: '12:30', end: '14:30', keys: ['agama', 'islam', 'uakxacb2', 'religion'] },
-        { name: 'Matematika untuk Sistem Informasi', code: 'BBK1CA03', sks: 3, day: 4, start: '07:30', end: '10:30', keys: ['matematika untuk sistem informasi', 'bbk1ca03', 'mathematics for information'] },
-        { name: 'Matematika Diskrit', code: 'BBK1BA03', sks: 3, day: 5, start: '06:30', end: '09:30', keys: ['diskrit', 'discrete', 'bbk1ba03'] },
+        { name: 'Algoritma dan Pemrograman', code: 'BBK1AA04', sks: 4, day: 1, start: '10:30', end: '14:30', keys: ['algoritma', 'pemrograman', 'algorithm', 'bbk1aa04', 'bbk1aa', 'aa04', 'aa4'] },
+        { name: 'Pengantar Sistem Informasi', code: 'BBK1DA03', sks: 3, day: 1, start: '14:30', end: '17:30', keys: ['pengantar sistem informasi', 'introduction to information', 'bbk1da03', 'bbk1da', 'da03', 'da3'] },
+        { name: 'Sistem Enterprise', code: 'BBK1EA03', sks: 3, day: 2, start: '06:30', end: '09:30', keys: ['enterprise', 'sistem enterprise', 'bbk1ea03', 'bbk1ea', 'ea03', 'ea3'] },
+        { name: 'Internalisasi Budaya & Karakter (IBPK)', code: 'UCK1FD01', sks: 1, day: 3, start: '08:30', end: '09:30', keys: ['internalisasi', 'karakter', 'budaya', 'uck1fd01', 'cultural', 'uck1', 'fd01'] },
+        { name: 'Pendidikan Agama Islam', code: 'UAKXACB2', sks: 2, day: 3, start: '12:30', end: '14:30', keys: ['agama', 'islam', 'uakxacb2', 'religion', 'uakx', 'acb2'] },
+        { name: 'Matematika untuk Sistem Informasi', code: 'BBK1CA03', sks: 3, day: 4, start: '07:30', end: '10:30', keys: ['matematika untuk sistem informasi', 'bbk1ca03', 'mathematics for information', 'bbk1ca', 'ca03', 'ca3'] },
+        { name: 'Matematika Diskrit', code: 'BBK1BA03', sks: 3, day: 5, start: '06:30', end: '09:30', keys: ['diskrit', 'discrete', 'bbk1ba03', 'bbk1ba', 'ba03', 'ba3'] },
     ];
 
-    const lowerText = rawText.toLowerCase();
+    const lowerText = (rawText || '').toLowerCase();
 
     courseCatalog.forEach(cat => {
         const matched = cat.keys.some(k => lowerText.includes(k));

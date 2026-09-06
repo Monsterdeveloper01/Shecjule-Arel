@@ -20,6 +20,7 @@ window.activeUploadFiles = [];
 function getCsrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
+window.getCsrfToken = getCsrfToken;
 
 async function apiRequest(url, method = 'GET', data = null) {
     const options = {
@@ -36,6 +37,7 @@ async function apiRequest(url, method = 'GET', data = null) {
     const response = await fetch(url, options);
     return response.json();
 }
+window.apiRequest = apiRequest;
 
 async function apiFormRequest(url, formData) {
     const response = await fetch(url, {
@@ -48,6 +50,7 @@ async function apiFormRequest(url, formData) {
     });
     return response.json();
 }
+window.apiFormRequest = apiFormRequest;
 
 // ===== FILE HELPERS =====
 function getFileIcon(type) {
@@ -1296,6 +1299,7 @@ function escapeHtml(str) {
     div.textContent = str;
     return div.innerHTML;
 }
+window.escapeHtml = escapeHtml;
 
 function formatDatetimeLocal(dateStr) {
     if (!dateStr) return '';
