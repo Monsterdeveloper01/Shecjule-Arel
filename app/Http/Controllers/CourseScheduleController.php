@@ -134,4 +134,68 @@ class CourseScheduleController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Bulk import course schedules from OCR scanner or text parser.
+     */
+    public function bulkImport(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'replace_existing' => 'nullable|boolean',
+            'courses' => 'required|array|min:1',
+            'courses.*.course_name' => 'required|string|max:255',
+            'courses.*.course_code' => 'nullable|string|max:50',
+            'courses.*.sks' => 'required|integer|min:1|max:10',
+            'courses.*.class_code' => 'nullable|string|max:50',
+            'courses.*.lecturer_name' => 'nullable|string|max:255',
+            'courses.*.day_of_week' => 'required|integer|min:1|max:7',
+            'courses.*.start_time' => 'required|string',
+            'courses.*.end_time' => 'required|string',
+            'courses.*.room' => 'nullable|string|max:100',
+            'courses.*.delivery_mode' => 'nullable|string|in:offline,online,hybrid',
+            'courses.*.color_tag' => 'nullable|string|max:30',
+            'courses.*.notes' => 'nullable|string',
+        ]);
+
+        if ($request->boolean('replace_existing')) {
+            CourseSchedule::query()->delete();
+        }
+
+        $colorPresets = ['red', 'indigo', 'blue', 'emerald', 'amber', 'purple', 'rose', 'cyan'];
+        $created = [];
+
+        foreach ($validated['courses'] as $index => $courseData) {
+            $color = $courseData['color_tag'] ?? $colorPresets[$index % count($colorPresets)];
+            $deliveryMode = $courseData['delivery_mode'] ?? 'offline';
+
+            $startTime = substr(trim($courseData['start_time']), 0, 5);
+            $endTime = substr(trim($courseData['end_time']), 0, 5);
+
+            $schedule = CourseSchedule::create([
+                'course_name' => trim($courseData['course_name']),
+                'course_code' => ! empty($courseData['course_code']) ? trim($courseData['course_code']) : null,
+                'sks' => (int) $courseData['sks'],
+                'class_code' => ! empty($courseData['class_code']) ? trim($courseData['class_code']) : null,
+                'lecturer_name' => ! empty($courseData['lecturer_name']) ? trim($courseData['lecturer_name']) : null,
+                'day_of_week' => (int) $courseData['day_of_week'],
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'room' => ! empty($courseData['room']) ? trim($courseData['room']) : null,
+                'delivery_mode' => $deliveryMode,
+                'color_tag' => $color,
+                'notes' => ! empty($courseData['notes']) ? trim($courseData['notes']) : null,
+            ]);
+
+            $created[] = $schedule;
+        }
+
+        $totalSks = CourseSchedule::sum('sks');
+
+        return response()->json([
+            'success' => true,
+            'count' => count($created),
+            'total_sks' => $totalSks,
+            'message' => 'Berhasil mengimpor '.count($created).' mata kuliah (Total '.$totalSks.' SKS)!',
+        ]);
+    }
 }

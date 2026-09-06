@@ -30,6 +30,7 @@ Route::middleware('pin.auth')->group(function () {
     Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggleStatus'])->name('tasks.toggle');
 
     Route::resource('schedules', CourseScheduleController::class)->except(['create', 'show', 'edit']);
+    Route::post('/schedules/bulk-import', [CourseScheduleController::class, 'bulkImport'])->name('schedules.bulk-import');
 
     Route::resource('notes', NoteController::class)->except(['create', 'show', 'edit']);
     Route::patch('/notes/{note}/pin', [NoteController::class, 'togglePin'])->name('notes.pin');

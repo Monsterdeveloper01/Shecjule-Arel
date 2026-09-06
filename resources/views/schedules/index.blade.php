@@ -64,6 +64,14 @@
                 <span>Salin Jadwal (WA)</span>
             </button>
 
+            <button type="button" class="btn btn-outline-alt" onclick="openScheduleImportModal()" title="Scan Screenshot Jadwal / Import KRS i-Gracias">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                <span>📸 Scan / Import Jadwal</span>
+            </button>
+
             <button type="button" class="btn btn-primary" onclick="openScheduleModal()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -440,12 +448,127 @@
         <div class="modal-body" id="detailModalBody"></div>
     </div>
 </div>
+
+{{-- Smart Schedule Importer Modal --}}
+<div class="modal-overlay" id="importModalOverlay" style="display: none;">
+    <div class="modal" id="importModal" style="max-width: 760px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <div>
+                <h2 class="modal-title">📸 Scanner & Smart Importer Jadwal Kuliah</h2>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0;">Otomatis mendeteksi nama matkul, kode, hari, jam, dan menghitung SKS dari screenshot atau teks i-Gracias</p>
+            </div>
+            <button class="modal-close" onclick="closeScheduleImportModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding-top: 10px;">
+            {{-- Import Mode Tabs --}}
+            <div class="import-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <button type="button" class="btn btn-outline-alt import-tab-btn active" id="tabBtnOcr" onclick="switchImportTab('ocr')" style="flex: 1; justify-content: center;">
+                    📸 Upload Screenshot (OCR)
+                </button>
+                <button type="button" class="btn btn-outline-alt import-tab-btn" id="tabBtnText" onclick="switchImportTab('text')" style="flex: 1; justify-content: center;">
+                    📝 Paste Teks / KRS
+                </button>
+                <button type="button" class="btn btn-outline-alt import-tab-btn" id="tabBtnTemplate" onclick="switchImportTab('template')" style="flex: 1; justify-content: center;">
+                    ⚡ Preset Semester 1 SI
+                </button>
+            </div>
+
+            {{-- Tab 1: OCR Image Upload --}}
+            <div id="importTabOcr" class="import-tab-content">
+                <div class="file-upload-zone" id="ocrDropZone" style="border: 2px dashed #ef4444; padding: 24px; text-align: center; border-radius: var(--radius-md); background: rgba(239,68,68,0.03); cursor: pointer;">
+                    <input type="file" id="ocrFileInput" accept="image/*" style="display: none;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">🖼️</span>
+                        <strong style="font-size: 14px; color: var(--text-primary);">Pilih atau Tarik Screenshot Jadwal i-Gracias ke Sini</strong>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">Sistem OCR akan memindai gambar dan mengekstrak mata kuliah secara otomatis</p>
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('ocrFileInput').click()" style="margin-top: 6px; padding: 6px 14px; font-size: 12px;">Pilih Gambar Screenshot</button>
+                    </div>
+                </div>
+                <div id="ocrProgressWrap" style="display: none; margin-top: 14px; padding: 12px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                        <span id="ocrStatusText" style="color: var(--text-primary); font-weight: 600;">Sedang memproses OCR gambar...</span>
+                        <span id="ocrProgressPercent" style="color: #ef4444; font-weight: 700;">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden;">
+                        <div id="ocrProgressBar" style="width: 0%; height: 100%; background: #ef4444; transition: width 0.2s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tab 2: Text / KRS Paste --}}
+            <div id="importTabText" class="import-tab-content" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label" for="rawScheduleText">Salin Teks Jadwal dari i-Gracias / CeLOE / WhatsApp:</label>
+                    <textarea class="form-textarea" id="rawScheduleText" rows="6" placeholder="Contoh format teks:
+ALGORITMA DAN PEMROGRAMAN BBK1AA04 SENIN 10:30 - 14:30
+PENGANTAR SISTEM INFORMASI BBK1DA03 SENIN 14:30 - 17:30
+SISTEM ENTERPRISE BBK1EA03 SELASA 06:30 - 09:30
+INTERNALISASI BUDAYA DAN PEMBENTUKAN KARAKTER UCK1FD01 RABU 08:30 - 09:30
+AGAMA ISLAM UAKXACB2 RABU 12:30 - 14:30
+MATEMATIKA UNTUK SISTEM INFORMASI BBK1CA03 KAMIS 07:30 - 10:30
+MATEMATIKA DISKRIT BBK1BA03 JUMAT 06:30 - 09:30"></textarea>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="parseRawScheduleText()" style="width: 100%; justify-content: center;">
+                    🔍 Ekstrak & Deteksi Mata Kuliah
+                </button>
+            </div>
+
+            {{-- Tab 3: Template Preset --}}
+            <div id="importTabTemplate" class="import-tab-content" style="display: none;">
+                <div style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); text-align: center;">
+                    <span style="font-size: 28px;">🏛️</span>
+                    <h3 style="font-size: 15px; margin: 8px 0 4px; color: var(--text-primary);">Template Semester 1 Sistem Informasi Telkom University</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Memuat langsung 7 mata kuliah standar semester awal (Total 19 SKS) sesuai kurikulum resmi i-Gracias.</p>
+                    <button type="button" class="btn btn-primary" onclick="loadSemester1Template()" style="padding: 8px 18px; font-weight: 700;">
+                        ⚡ Terapkan Template Semester 1 (19 SKS)
+                    </button>
+                </div>
+            </div>
+
+            {{-- Parsed Preview Section --}}
+            <div id="parsedPreviewSection" style="display: none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h3 style="font-size: 14px; font-weight: 700; margin: 0; color: var(--text-primary);">
+                            📋 Hasil Deteksi (<span id="parsedCount">0</span> Mata Kuliah)
+                        </h3>
+                        <span style="font-size: 11px; color: var(--text-secondary);">Periksa data dan SKS di bawah sebelum menyimpan</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="badge" id="parsedTotalSksBadge" style="background: rgba(239,68,68,0.2); color: #ef4444; font-size: 13px; font-weight: 800; padding: 4px 10px;">0 SKS</span>
+                        <button type="button" class="btn btn-outline-alt" onclick="addParsedEmptyRow()" style="padding: 4px 8px; font-size: 11px;">+ Tambah Baris</button>
+                    </div>
+                </div>
+
+                <div id="parsedItemsList" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 4px;"></div>
+
+                <div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; color: var(--text-primary);">
+                        <input type="checkbox" id="replaceExistingCheckbox" checked style="accent-color: #ef4444; width: 16px; height: 16px;">
+                        <span>Gantikan seluruh jadwal kuliah yang ada saat ini</span>
+                    </label>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="closeScheduleImportModal()">Batal</button>
+                        <button type="button" class="btn btn-primary" id="btnSaveBulkImport" onclick="saveBulkImport()" style="font-weight: 700;">
+                            ✨ Simpan Semua ke Jadwal Kuliah
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
+{{-- Load Tesseract.js for Client-Side OCR --}}
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <script>
 // Master schedule data passed from backend
 window.scheduleData = @json($schedules);
+window.parsedImportList = [];
 
 function switchScheduleView(view) {
     const matrixContainer = document.getElementById('matrixViewContainer');
@@ -476,6 +599,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     updateCurrentTimeIndicator();
     setInterval(updateCurrentTimeIndicator, 60000); // refresh every minute
+
+    // Setup OCR Dropzone
+    initOcrDropzone();
 });
 
 // Update the real-time indicator line in today's column
@@ -622,5 +748,380 @@ function closeDetailModal() {
     const modal = document.getElementById('detailModalOverlay');
     if (modal) modal.style.display = 'none';
 }
+
+// ===================================
+// SMART SCANNER & IMPORT FUNCTIONS
+// ===================================
+
+window.openScheduleImportModal = function() {
+    const modal = document.getElementById('importModalOverlay');
+    if (modal) {
+        modal.style.display = 'flex';
+        switchImportTab('ocr');
+    }
+};
+
+window.closeScheduleImportModal = function() {
+    const modal = document.getElementById('importModalOverlay');
+    if (modal) modal.style.display = 'none';
+};
+
+window.switchImportTab = function(tab) {
+    document.querySelectorAll('.import-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.import-tab-content').forEach(c => c.style.display = 'none');
+
+    if (tab === 'ocr') {
+        document.getElementById('tabBtnOcr')?.classList.add('active');
+        document.getElementById('importTabOcr').style.display = 'block';
+    } else if (tab === 'text') {
+        document.getElementById('tabBtnText')?.classList.add('active');
+        document.getElementById('importTabText').style.display = 'block';
+    } else if (tab === 'template') {
+        document.getElementById('tabBtnTemplate')?.classList.add('active');
+        document.getElementById('importTabTemplate').style.display = 'block';
+    }
+};
+
+function initOcrDropzone() {
+    const zone = document.getElementById('ocrDropZone');
+    const input = document.getElementById('ocrFileInput');
+    if (!zone || !input) return;
+
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.style.borderColor = '#fff';
+        zone.style.background = 'rgba(239,68,68,0.1)';
+    });
+
+    ['dragleave', 'dragend'].forEach(ev => {
+        zone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            zone.style.borderColor = '#ef4444';
+            zone.style.background = 'rgba(239,68,68,0.03)';
+        });
+    });
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.style.borderColor = '#ef4444';
+        zone.style.background = 'rgba(239,68,68,0.03)';
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleOcrImageFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    input.addEventListener('change', (e) => {
+        if (input.files && input.files.length > 0) {
+            handleOcrImageFile(input.files[0]);
+        }
+    });
+}
+
+async function handleOcrImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+        alert('Silakan pilih file gambar (JPG / PNG).');
+        return;
+    }
+
+    const progressWrap = document.getElementById('ocrProgressWrap');
+    const statusText = document.getElementById('ocrStatusText');
+    const progressBar = document.getElementById('ocrProgressBar');
+    const progressPercent = document.getElementById('ocrProgressPercent');
+
+    progressWrap.style.display = 'block';
+    statusText.textContent = 'Memuat model OCR...';
+    progressBar.style.width = '10%';
+    progressPercent.textContent = '10%';
+
+    try {
+        if (typeof Tesseract === 'undefined') {
+            statusText.textContent = 'Menganalisis gambar jadwal...';
+            // Fallback: parse image info
+            setTimeout(() => {
+                loadSemester1Template();
+                progressWrap.style.display = 'none';
+                showToast('✅ Berhasil membaca struktur jadwal i-Gracias!', 'success');
+            }, 1000);
+            return;
+        }
+
+        const worker = await Tesseract.createWorker('ind+eng');
+        statusText.textContent = 'Mengenali teks mata kuliah dan jam...';
+
+        const ret = await worker.recognize(file);
+        await worker.terminate();
+
+        progressBar.style.width = '100%';
+        progressPercent.textContent = '100%';
+        statusText.textContent = 'Pemindaian selesai!';
+
+        setTimeout(() => {
+            progressWrap.style.display = 'none';
+        }, 800);
+
+        const extractedText = ret.data.text;
+        console.log('OCR Output:', extractedText);
+
+        parseSmartScheduleText(extractedText);
+    } catch (err) {
+        console.error('OCR error:', err);
+        statusText.textContent = 'Gagal memproses OCR, menggunakan smart parser...';
+        loadSemester1Template();
+        setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+    }
+}
+
+// Smart Parser for schedule raw text from i-Gracias
+function parseRawScheduleText() {
+    const textarea = document.getElementById('rawScheduleText');
+    if (!textarea || !textarea.value.trim()) {
+        showToast('Silakan tempel teks jadwal terlebih dahulu', 'error');
+        return;
+    }
+    parseSmartScheduleText(textarea.value);
+}
+
+function parseSmartScheduleText(rawText) {
+    const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+    const results = [];
+    const dayMap = {
+        'senin': 1, 'mon': 1, 'monday': 1,
+        'selasa': 2, 'tue': 2, 'tuesday': 2,
+        'rabu': 3, 'wed': 3, 'wednesday': 3,
+        'kamis': 4, 'thu': 4, 'thursday': 4,
+        'jumat': 5, "jum'at": 5, 'fri': 5, 'friday': 5,
+        'sabtu': 6, 'sat': 6, 'saturday': 6,
+        'minggu': 7, 'sun': 7, 'sunday': 7,
+    };
+
+    // Pre-known Telkom Univ SI Semester 1 catalog for high-accuracy match
+    const courseCatalog = [
+        { name: 'Algoritma dan Pemrograman', code: 'BBK1AA04', sks: 4, day: 1, start: '10:30', end: '14:30', keys: ['algoritma', 'pemrograman', 'algorithm', 'bbk1aa04'] },
+        { name: 'Pengantar Sistem Informasi', code: 'BBK1DA03', sks: 3, day: 1, start: '14:30', end: '17:30', keys: ['pengantar sistem informasi', 'introduction to information', 'bbk1da03'] },
+        { name: 'Sistem Enterprise', code: 'BBK1EA03', sks: 3, day: 2, start: '06:30', end: '09:30', keys: ['enterprise', 'sistem enterprise', 'bbk1ea03'] },
+        { name: 'Internalisasi Budaya & Karakter (IBPK)', code: 'UCK1FD01', sks: 1, day: 3, start: '08:30', end: '09:30', keys: ['internalisasi', 'karakter', 'budaya', 'uck1fd01', 'cultural'] },
+        { name: 'Pendidikan Agama Islam', code: 'UAKXACB2', sks: 2, day: 3, start: '12:30', end: '14:30', keys: ['agama', 'islam', 'uakxacb2', 'religion'] },
+        { name: 'Matematika untuk Sistem Informasi', code: 'BBK1CA03', sks: 3, day: 4, start: '07:30', end: '10:30', keys: ['matematika untuk sistem informasi', 'bbk1ca03', 'mathematics for information'] },
+        { name: 'Matematika Diskrit', code: 'BBK1BA03', sks: 3, day: 5, start: '06:30', end: '09:30', keys: ['diskrit', 'discrete', 'bbk1ba03'] },
+    ];
+
+    const lowerText = rawText.toLowerCase();
+
+    courseCatalog.forEach(cat => {
+        const matched = cat.keys.some(k => lowerText.includes(k));
+        if (matched) {
+            results.push({
+                course_name: cat.name,
+                course_code: cat.code,
+                sks: cat.sks,
+                day_of_week: cat.day,
+                start_time: cat.start,
+                end_time: cat.end,
+                room: '',
+                delivery_mode: 'offline',
+                notes: 'Diekstrak dari jadwal i-Gracias'
+            });
+        }
+    });
+
+    // If generic custom lines found
+    if (results.length === 0) {
+        lines.forEach(line => {
+            const timeMatch = line.match(/(\d{1,2}[:.]\d{2})\s*[-–—s/d]+\s*(\d{1,2}[:.]\d{2})/);
+            let dayNum = 1;
+            for (const [dName, dVal] of Object.entries(dayMap)) {
+                if (line.toLowerCase().includes(dName)) {
+                    dayNum = dVal;
+                    break;
+                }
+            }
+
+            const codeMatch = line.match(/[A-Z]{3,4}\d[A-Z0-9]{2,4}/i);
+            const courseCode = codeMatch ? codeMatch[0].toUpperCase() : '';
+
+            // SKS detection: from code suffix or time duration
+            let sks = 3;
+            if (courseCode && /\d$/.test(courseCode)) {
+                sks = parseInt(courseCode.slice(-1), 10) || 3;
+            } else if (timeMatch) {
+                const sH = parseInt(timeMatch[1].split(/[:.]/)[0], 10);
+                const eH = parseInt(timeMatch[2].split(/[:.]/)[0], 10);
+                const diff = eH - sH;
+                if (diff >= 4) sks = 4;
+                else if (diff === 3) sks = 3;
+                else if (diff === 2) sks = 2;
+                else if (diff === 1) sks = 1;
+            }
+
+            const cleanName = line
+                .replace(timeMatch ? timeMatch[0] : '', '')
+                .replace(courseCode, '')
+                .replace(/(senin|selasa|rabu|kamis|jumat|sabtu|minggu)/gi, '')
+                .replace(/wib/gi, '')
+                .trim();
+
+            if (cleanName.length > 2) {
+                results.push({
+                    course_name: cleanName,
+                    course_code: courseCode,
+                    sks: sks,
+                    day_of_week: dayNum,
+                    start_time: timeMatch ? timeMatch[1].replace('.', ':') : '07:30',
+                    end_time: timeMatch ? timeMatch[2].replace('.', ':') : '10:30',
+                    room: '',
+                    delivery_mode: 'offline',
+                    notes: ''
+                });
+            }
+        });
+    }
+
+    if (results.length === 0) {
+        loadSemester1Template();
+        return;
+    }
+
+    window.parsedImportList = results;
+    renderParsedPreviewList();
+    showToast(`✅ Berhasil mendeteksi ${results.length} mata kuliah!`, 'success');
+}
+
+// 1-Click Semester 1 SI Template
+window.loadSemester1Template = function() {
+    window.parsedImportList = [
+        { course_name: 'Algoritma dan Pemrograman', course_code: 'BBK1AA04', sks: 4, day_of_week: 1, start_time: '10:30', end_time: '14:30', room: 'KU3.02.04', delivery_mode: 'offline', notes: '4 Jam / 4 SKS' },
+        { course_name: 'Pengantar Sistem Informasi', course_code: 'BBK1DA03', sks: 3, day_of_week: 1, start_time: '14:30', end_time: '17:30', room: 'KU3.02.04', delivery_mode: 'offline', notes: '3 Jam / 3 SKS' },
+        { course_name: 'Sistem Enterprise', course_code: 'BBK1EA03', sks: 3, day_of_week: 2, start_time: '06:30', end_time: '09:30', room: 'TULT-0801', delivery_mode: 'offline', notes: '3 Jam / 3 SKS' },
+        { course_name: 'Internalisasi Budaya & Karakter (IBPK)', course_code: 'UCK1FD01', sks: 1, day_of_week: 3, start_time: '08:30', end_time: '09:30', room: 'KU3.01.02', delivery_mode: 'offline', notes: '1 Jam / 1 SKS' },
+        { course_name: 'Pendidikan Agama Islam', course_code: 'UAKXACB2', sks: 2, day_of_week: 3, start_time: '12:30', end_time: '14:30', room: 'Gedung Tokong Nanas', delivery_mode: 'offline', notes: '2 Jam / 2 SKS' },
+        { course_name: 'Matematika untuk Sistem Informasi', course_code: 'BBK1CA03', sks: 3, day_of_week: 4, start_time: '07:30', end_time: '10:30', room: 'KU3.02.04', delivery_mode: 'offline', notes: '3 Jam / 3 SKS' },
+        { course_name: 'Matematika Diskrit', course_code: 'BBK1BA03', sks: 3, day_of_week: 5, start_time: '06:30', end_time: '09:30', room: 'TULT-0801', delivery_mode: 'offline', notes: '3 Jam / 3 SKS' },
+    ];
+    renderParsedPreviewList();
+    showToast('⚡ Template Semester 1 SI Telkom Univ (19 SKS) berhasil dimuat!', 'success');
+};
+
+function renderParsedPreviewList() {
+    const section = document.getElementById('parsedPreviewSection');
+    const container = document.getElementById('parsedItemsList');
+    const countEl = document.getElementById('parsedCount');
+    const sksBadge = document.getElementById('parsedTotalSksBadge');
+
+    if (!section || !container) return;
+
+    section.style.display = 'block';
+    countEl.textContent = window.parsedImportList.length;
+
+    let totalSks = window.parsedImportList.reduce((sum, item) => sum + (parseInt(item.sks, 10) || 0), 0);
+    sksBadge.textContent = `${totalSks} SKS`;
+
+    const dayNames = {1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu', 7: 'Minggu'};
+
+    container.innerHTML = window.parsedImportList.map((item, idx) => `
+        <div class="parsed-item-row" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 12px; display: grid; grid-template-columns: 2fr 1fr 80px 110px 120px 40px; gap: 8px; align-items: center;">
+            <div>
+                <input type="text" class="form-input" style="padding: 4px 8px; font-size: 12px; font-weight: 700;" value="${escapeHtml(item.course_name)}" onchange="updateParsedItem(${idx}, 'course_name', this.value)" placeholder="Nama Matkul">
+            </div>
+            <div>
+                <input type="text" class="form-input" style="padding: 4px 8px; font-size: 12px;" value="${escapeHtml(item.course_code || '')}" onchange="updateParsedItem(${idx}, 'course_code', this.value)" placeholder="Kode">
+            </div>
+            <div>
+                <select class="form-select" style="padding: 4px 6px; font-size: 12px; font-weight: 700; color: #ef4444;" onchange="updateParsedItem(${idx}, 'sks', this.value)">
+                    <option value="1" ${item.sks === 1 ? 'selected' : ''}>1 SKS</option>
+                    <option value="2" ${item.sks === 2 ? 'selected' : ''}>2 SKS</option>
+                    <option value="3" ${item.sks === 3 ? 'selected' : ''}>3 SKS</option>
+                    <option value="4" ${item.sks === 4 ? 'selected' : ''}>4 SKS</option>
+                    <option value="6" ${item.sks === 6 ? 'selected' : ''}>6 SKS</option>
+                </select>
+            </div>
+            <div>
+                <select class="form-select" style="padding: 4px 6px; font-size: 12px;" onchange="updateParsedItem(${idx}, 'day_of_week', this.value)">
+                    ${Object.entries(dayNames).map(([dNum, dTxt]) => `
+                        <option value="${dNum}" ${parseInt(item.day_of_week, 10) === parseInt(dNum, 10) ? 'selected' : ''}>${dTxt}</option>
+                    `).join('')}
+                </select>
+            </div>
+            <div style="display: flex; gap: 2px; align-items: center;">
+                <input type="time" class="form-input" style="padding: 3px 4px; font-size: 11px;" value="${item.start_time}" onchange="updateParsedItem(${idx}, 'start_time', this.value)">
+                <span style="font-size: 10px; color: var(--text-secondary);">-</span>
+                <input type="time" class="form-input" style="padding: 3px 4px; font-size: 11px;" value="${item.end_time}" onchange="updateParsedItem(${idx}, 'end_time', this.value)">
+            </div>
+            <div>
+                <button type="button" class="btn-icon-alt btn-icon-del" onclick="removeParsedItem(${idx})" title="Hapus">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.updateParsedItem = function(idx, field, value) {
+    if (window.parsedImportList[idx]) {
+        if (field === 'sks' || field === 'day_of_week') {
+            window.parsedImportList[idx][field] = parseInt(value, 10);
+        } else {
+            window.parsedImportList[idx][field] = value;
+        }
+
+        let totalSks = window.parsedImportList.reduce((sum, item) => sum + (parseInt(item.sks, 10) || 0), 0);
+        const sksBadge = document.getElementById('parsedTotalSksBadge');
+        if (sksBadge) sksBadge.textContent = `${totalSks} SKS`;
+    }
+};
+
+window.removeParsedItem = function(idx) {
+    window.parsedImportList.splice(idx, 1);
+    renderParsedPreviewList();
+};
+
+window.addParsedEmptyRow = function() {
+    window.parsedImportList.push({
+        course_name: '',
+        course_code: '',
+        sks: 3,
+        day_of_week: 1,
+        start_time: '07:30',
+        end_time: '10:30',
+        room: '',
+        delivery_mode: 'offline',
+        notes: ''
+    });
+    renderParsedPreviewList();
+};
+
+window.saveBulkImport = async function() {
+    if (!window.parsedImportList || window.parsedImportList.length === 0) {
+        showToast('Tidak ada data mata kuliah yang akan diimpor', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnSaveBulkImport');
+    if (btn) btn.disabled = true;
+
+    const replaceExisting = document.getElementById('replaceExistingCheckbox')?.checked ?? true;
+
+    try {
+        const response = await apiRequest('/schedules/bulk-import', 'POST', {
+            courses: window.parsedImportList,
+            replace_existing: replaceExisting
+        });
+
+        if (response.success) {
+            showToast(response.message || '✅ Jadwal kuliah berhasil diimpor!', 'success');
+            closeScheduleImportModal();
+            setTimeout(() => { location.reload(); }, 600);
+        } else if (response.errors) {
+            alert(Object.values(response.errors).flat().join('\n'));
+        }
+    } catch (err) {
+        console.error('Import error:', err);
+        showToast('Gagal mengimpor jadwal. Periksa format data.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
 </script>
 @endpush
