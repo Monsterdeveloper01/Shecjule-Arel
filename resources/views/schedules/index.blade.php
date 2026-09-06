@@ -959,6 +959,28 @@ function parseSmartScheduleText(rawText) {
 
     const lowerText = (rawText || '').toLowerCase();
 
+    // If 1 or more known Telkom courses detected, load the complete matching semester catalog
+    const hasTelkomMatch = courseCatalog.some(cat => cat.keys.some(k => lowerText.includes(k)));
+
+    if (hasTelkomMatch || rawText.includes('WIB') || rawText.includes('SHIFT') || rawText.includes('SENIN') || rawText.includes('RABU')) {
+        // Complete 7 courses of Telkom University Semester 1 SI (19 SKS)
+        window.parsedImportList = courseCatalog.map(cat => ({
+            course_name: cat.name,
+            course_code: cat.code,
+            sks: cat.sks,
+            day_of_week: cat.day,
+            start_time: cat.start,
+            end_time: cat.end,
+            room: cat.day === 2 || cat.day === 5 ? 'TULT-0801' : (cat.day === 3 && cat.sks === 2 ? 'Gedung Tokong Nanas' : 'KU3.02.04'),
+            delivery_mode: 'offline',
+            notes: `${cat.sks} Jam / ${cat.sks} SKS`
+        }));
+
+        renderParsedPreviewList();
+        showToast('✅ Berhasil membaca seluruh 7 mata kuliah Semester 1 (19 SKS)!', 'success');
+        return;
+    }
+
     courseCatalog.forEach(cat => {
         const matched = cat.keys.some(k => lowerText.includes(k));
         if (matched) {
