@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('pin')->nullable()->after('name');
+            $table->dropUnique(['email']);
             $table->dropColumn(['email', 'email_verified_at', 'password']);
         });
     }

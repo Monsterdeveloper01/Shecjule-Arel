@@ -39,5 +39,6 @@ Route::middleware('pin.auth')->group(function () {
 
     // Push Notification Testing & Manual Trigger
     Route::post('/push/test', [PushSubscriptionController::class, 'sendTest'])->name('push.test');
+    Route::post('/push/test-schedule', [PushSubscriptionController::class, 'sendScheduleTest'])->name('push.test-schedule');
     Route::post('/push/check-deadlines', [PushSubscriptionController::class, 'checkDeadlines'])->name('push.check');
 });

@@ -56,6 +56,14 @@
                 </button>
             </div>
 
+            <button type="button" class="btn btn-outline-alt" onclick="sendTestScheduleNotification()" title="Kirim notifikasi uji coba pengingat jadwal kuliah (Multi-Matkul) ke HP / Perangkat">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <span>🔔 Tes Notif Jadwal</span>
+            </button>
+
             <button type="button" class="btn btn-outline-alt" onclick="copyScheduleToClipboard()" title="Salin format teks jadwal kuliah untuk WhatsApp">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>

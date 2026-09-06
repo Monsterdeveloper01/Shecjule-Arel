@@ -1403,8 +1403,11 @@ window.openNotificationModal = async function() {
                     🔕 Nonaktifkan Notifikasi di Perangkat Ini
                 </button>
             `}
+            <button type="button" class="btn-primary btn-full" style="background: linear-gradient(135deg, #e11d48, #be123c); border: none;" onclick="sendTestScheduleNotification()">
+                📚 Tes Pengingat Jadwal Kuliah Besok (Multi-Matkul)
+            </button>
             <button type="button" class="btn-secondary btn-full" onclick="sendTestPushNotification()">
-                ⚡ Kirim Notifikasi Uji Coba Sekarang
+                ⚡ Kirim Tes Notifikasi Standar
             </button>
         </div>
 
@@ -1530,6 +1533,45 @@ window.sendTestPushNotification = async function() {
     } catch (err) {
         console.error('Push test error:', err);
         alert('Catatan: Web Push di HP membutuhkan koneksi aman (HTTPS). Di server Linux dengan domain HTTPS nanti, notifikasi ini akan bekerja otomatis.');
+    }
+};
+
+window.sendTestScheduleNotification = async function(dayOfWeek = null) {
+    try {
+        const payload = dayOfWeek ? { day_of_week: dayOfWeek } : {};
+        const res = await apiRequest('/push/test-schedule', 'POST', payload);
+
+        if (res.success && res.title && res.body) {
+            // Trigger local immediate notification if permission granted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    if (swRegistration && swRegistration.showNotification) {
+                        swRegistration.showNotification(res.title, {
+                            body: res.body,
+                            icon: '/favicon.ico',
+                            badge: '/favicon.ico',
+                            vibrate: [200, 100, 200],
+                            data: { url: '/schedules' }
+                        });
+                    } else {
+                        new Notification(res.title, {
+                            body: res.body,
+                            icon: '/favicon.ico',
+                        });
+                    }
+                } catch (e) {
+                    console.log('Direct notification fallback:', e);
+                }
+            }
+
+            const previewText = `${res.title}\n\n${res.body}`;
+            alert(`✅ Pengingat Jadwal Kuliah Terkirim:\n\n${previewText}\n\n${res.message}`);
+        } else {
+            alert(res.message || 'Gagal mengirim notifikasi jadwal.');
+        }
+    } catch (err) {
+        console.error('Schedule push test error:', err);
+        alert('Gagal mengirim tes notifikasi jadwal: ' + err.message);
     }
 };
 
