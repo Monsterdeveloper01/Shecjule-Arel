@@ -70,6 +70,7 @@ class TaskController extends Controller
             'status' => 'nullable|in:pending,in_progress,completed',
             'estimated_duration' => 'nullable|integer|min:1|max:9999',
             'progress' => 'nullable|integer|min:0|max:100',
+            'subtasks' => 'nullable|array',
             'files' => 'nullable|array',
             'files.*' => 'file|max:51200',
         ]);
@@ -103,6 +104,7 @@ class TaskController extends Controller
             'status' => 'nullable|in:pending,in_progress,completed',
             'estimated_duration' => 'nullable|integer|min:1|max:9999',
             'progress' => 'nullable|integer|min:0|max:100',
+            'subtasks' => 'nullable|array',
             'files' => 'nullable|array',
             'files.*' => 'file|max:51200',
             'deleted_attachment_ids' => 'nullable|array',
@@ -125,6 +127,43 @@ class TaskController extends Controller
         $task->load('attachments');
 
         return response()->json(['success' => true, 'task' => $task]);
+    }
+
+    /**
+     * Toggle a single subtask's completed state.
+     */
+    public function toggleSubtask(Request $request, Task $task): JsonResponse
+    {
+        $validated = $request->validate([
+            'index' => 'required|integer|min:0',
+            'completed' => 'required|boolean',
+        ]);
+
+        $subtasks = $task->subtasks ?? [];
+        $idx = $validated['index'];
+
+        if (isset($subtasks[$idx])) {
+            $subtasks[$idx]['completed'] = $validated['completed'];
+            $task->subtasks = $subtasks;
+
+            // Automatically update task progress percentage
+            $total = count($subtasks);
+            $completed = count(array_filter($subtasks, fn ($s) => ! empty($s['completed'])));
+            $task->progress = $total > 0 ? (int) round(($completed / $total) * 100) : $task->progress;
+
+            if ($task->progress === 100) {
+                $task->status = 'completed';
+            } elseif ($task->status === 'completed' && $task->progress < 100) {
+                $task->status = 'in_progress';
+            }
+
+            $task->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'task' => $task,
+        ]);
     }
 
     /**

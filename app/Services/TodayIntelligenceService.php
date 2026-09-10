@@ -18,6 +18,7 @@ class TodayIntelligenceService
         protected ScheduleOverloadService $overloadService,
         protected DeadlineRiskEngine $riskEngine,
         protected PriorityEngine $priorityEngine,
+        protected AiAssistantService $aiService,
     ) {}
 
     /**
@@ -30,7 +31,8 @@ class TodayIntelligenceService
      *     totalFreeHoursToday: float,
      *     recommendation: ?ScheduleRecommendation,
      *     highRiskTasks: Collection<int, Task>,
-     *     focusTask: ?Task
+     *     focusTask: ?Task,
+     *     aiInsight: string
      * }
      */
     public function getTodayHub(): array
@@ -60,7 +62,7 @@ class TodayIntelligenceService
             ->orderByDesc('priority_score')
             ->first();
 
-        return [
+        $hubData = [
             'overload' => $overload,
             'nextUp' => $nextUp,
             'freeSlots' => $freeSlots,
@@ -69,6 +71,10 @@ class TodayIntelligenceService
             'highRiskTasks' => $highRiskTasks,
             'focusTask' => $focusTask,
         ];
+
+        $hubData['aiInsight'] = $this->aiService->generateDailyInsight($hubData);
+
+        return $hubData;
     }
 
     /**

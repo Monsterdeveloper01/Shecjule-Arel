@@ -49,13 +49,18 @@
             </select>
             @endif
         </div>
-        <button class="btn-primary" onclick="openTaskModal()" id="addTaskBtn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Tambah Tugas
-        </button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn-ai-assistant-page" onclick="openAiModal('text')" id="openAiModalBtn">
+                ✨ Tambah via AI
+            </button>
+            <button class="btn-primary" onclick="openTaskModal()" id="addTaskBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Tambah Tugas
+            </button>
+        </div>
     </div>
 </div>
 
@@ -126,6 +131,23 @@
             </div>
             @endif
 
+            @if(is_array($task->subtasks) && count($task->subtasks) > 0)
+            <div class="task-subtasks-box">
+                <div class="task-subtasks-header">
+                    <span>Langkah / Subtasks ({{ $task->completed_subtasks_count }}/{{ $task->total_subtasks_count }})</span>
+                    <span>{{ round(($task->completed_subtasks_count / max(1, $task->total_subtasks_count)) * 100) }}%</span>
+                </div>
+                <div class="task-subtasks-list">
+                    @foreach($task->subtasks as $idx => $st)
+                    <label class="task-subtask-item {{ !empty($st['completed']) ? 'done' : '' }}">
+                        <input type="checkbox" {{ !empty($st['completed']) ? 'checked' : '' }} onchange="toggleTaskSubtask({{ $task->id }}, {{ $idx }}, this.checked)">
+                        <span>{{ $st['title'] ?? '' }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             <div class="task-meta">
                 @if($task->subject)
                 <span class="task-subject-badge">{{ $task->subject }}</span>
@@ -170,6 +192,9 @@
             </div>
         </div>
         <div class="task-card-actions">
+            <button class="action-btn action-ai" onclick="openAiBreakdownForTask('{{ addslashes($task->title) }}', {{ $task->id }})" title="Pecah subtask dengan AI" aria-label="AI Breakdown">
+                <span>✨</span>
+            </button>
             <button class="action-btn" onclick="editTask({{ $task->id }}, {{ json_encode($task) }})" aria-label="Edit">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>

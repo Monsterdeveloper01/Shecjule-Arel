@@ -135,6 +135,8 @@ class TodayIntelligenceSuiteTest extends TestCase
         $this->assertArrayHasKey('totalFreeHoursToday', $hub);
         $this->assertArrayHasKey('recommendation', $hub);
         $this->assertArrayHasKey('highRiskTasks', $hub);
+        $this->assertArrayHasKey('aiInsight', $hub);
+        $this->assertNotEmpty($hub['aiInsight']);
     }
 
     public function test_dashboard_renders_today_intelligence_hub(): void

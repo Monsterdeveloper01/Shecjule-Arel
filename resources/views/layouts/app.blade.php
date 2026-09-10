@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
@@ -114,6 +115,13 @@
                 </button>
                 <h1 class="page-title">@yield('page-title', 'Dashboard')</h1>
                 <div class="top-bar-right">
+                    <button class="topbar-ai-btn" id="topbarAiBtn" onclick="openAiModal()" title="Asisten Perencana Pintar AI" aria-label="AI Assistant">
+                        <span class="ai-sparkle-dot"></span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                        <span>AI Assistant</span>
+                    </button>
                     <button class="topbar-btn" id="notificationBtn" title="Pengaturan Notifikasi HP" aria-label="Notifikasi">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -142,6 +150,219 @@
         </div>
     </div>
 
+    {{-- Dedicated AI Assistant Modal (V3) --}}
+    <div class="modal-overlay ai-modal-overlay" id="aiModalOverlay">
+        <div class="modal ai-modal-window" id="aiModal">
+            <div class="ai-modal-header">
+                <div class="ai-modal-header-left">
+                    <div class="ai-avatar-badge">✨</div>
+                    <div>
+                        <h2 class="ai-modal-heading">Asisten AI Perencana</h2>
+                        <p class="ai-modal-subheading">Suara, bahasa alami, screenshot silabus & pecah tugas</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeAiModal()" aria-label="Tutup">&times;</button>
+            </div>
+
+            {{-- Tabs --}}
+            <div class="ai-modal-tabs">
+                <button type="button" class="ai-tab-btn active" id="aiTabBtnText" onclick="switchAiTab('text')">
+                    🎙️ Suara & Teks
+                </button>
+                <button type="button" class="ai-tab-btn" id="aiTabBtnOcr" onclick="switchAiTab('ocr')">
+                    📷 Screenshot / Chat
+                </button>
+                <button type="button" class="ai-tab-btn" id="aiTabBtnBreakdown" onclick="switchAiTab('breakdown')">
+                    ⚡ Pecah Tugas
+                </button>
+            </div>
+
+            <div class="ai-modal-body">
+                {{-- TAB 1: Voice & Natural Language --}}
+                <div class="ai-tab-content active" id="aiTabContentText">
+                    <div class="ai-input-group">
+                        <label for="aiPromptInput" class="ai-label">Ucapkan atau ketik apa yang ingin kamu jadwalkan:</label>
+                        <div class="ai-textarea-wrapper">
+                            <textarea id="aiPromptInput" class="ai-textarea" rows="3" placeholder='Contoh: "Jumat depan ada tugas basis data, bikin ERD sama normalisasi, kira-kira 3 jam."'></textarea>
+                            <button type="button" id="aiVoiceBtn" class="ai-mic-trigger-btn" onclick="toggleVoiceInput()" title="Mulai / Berhenti Rekam Suara">
+                                <span class="ai-mic-icon">🎙️</span>
+                                <span class="ai-mic-label" id="aiMicLabel">Bicara</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ai-chips-row">
+                        <span class="ai-chip-hint">Contoh:</span>
+                        <button type="button" class="ai-chip" onclick="applyAiExample('Jumat depan ada tugas basis data, bikin ERD sama normalisasi, kira-kira 3 jam.')">
+                            📝 Tugas Basis Data
+                        </button>
+                        <button type="button" class="ai-chip" onclick="applyAiExample('Besok jam 7 malam rapat organisasi di Ruang TULT.')">
+                            👥 Rapat Besok Malam
+                        </button>
+                        <button type="button" class="ai-chip" onclick="applyAiExample('Lusa tugas pemrograman web bikin REST API dan auth 2 jam prioritas tinggi.')">
+                            💻 Tugas Pemweb Lusa
+                        </button>
+                    </div>
+
+                    <div class="ai-action-footer">
+                        <button type="button" class="btn-ai-submit" id="btnProcessAiText" onclick="processAiText()">
+                            <span class="btn-ai-text">✨ Proses dengan AI</span>
+                        </button>
+                    </div>
+
+                    {{-- Draft Preview Container --}}
+                    <div class="ai-draft-container" id="aiDraftContainer" style="display: none;">
+                        <div class="ai-draft-card">
+                            <div class="ai-draft-header">
+                                <span class="ai-draft-badge" id="aiDraftTypeBadge">Tugas</span>
+                                <span class="ai-draft-conf" id="aiDraftConfidence">Akurasi ~95%</span>
+                            </div>
+
+                            <form id="aiDraftForm" onsubmit="confirmAiDraft(event)">
+                                <input type="hidden" id="aiDraftType" name="type" value="task">
+
+                                <div class="ai-form-group">
+                                    <label>Judul <span class="required">*</span></label>
+                                    <input type="text" class="form-input" id="aiDraftTitle" name="title" required>
+                                </div>
+
+                                <div class="ai-form-row">
+                                    <div class="ai-form-group" id="aiDraftSubjectGroup">
+                                        <label>Mata Kuliah</label>
+                                        <input type="text" class="form-input" id="aiDraftSubject" name="subject" placeholder="Pilihan...">
+                                    </div>
+                                    <div class="ai-form-group">
+                                        <label id="aiDraftDateLabel">Deadline</label>
+                                        <input type="datetime-local" class="form-input" id="aiDraftDeadline" name="deadline" required>
+                                    </div>
+                                </div>
+
+                                <div class="ai-form-row" id="aiDraftTaskExtras">
+                                    <div class="ai-form-group">
+                                        <label>Estimasi Durasi (Menit)</label>
+                                        <input type="number" class="form-input" id="aiDraftDuration" name="estimated_duration" min="5" max="9999" value="60">
+                                    </div>
+                                    <div class="ai-form-group">
+                                        <label>Prioritas</label>
+                                        <select class="form-select" id="aiDraftPriority" name="priority">
+                                            <option value="urgent">🔴 Urgent</option>
+                                            <option value="high">🟠 High</option>
+                                            <option value="medium" selected>🟡 Medium</option>
+                                            <option value="low">🟢 Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="ai-form-row" id="aiDraftEventExtras" style="display: none;">
+                                    <div class="ai-form-group">
+                                        <label>Lokasi / Ruangan</label>
+                                        <input type="text" class="form-input" id="aiDraftLocation" name="location" placeholder="e.g. Ruang TULT 08.01">
+                                    </div>
+                                    <div class="ai-form-group">
+                                        <label>Kategori Acara</label>
+                                        <select class="form-select" id="aiDraftCategory" name="category">
+                                            <option value="organisasi">Organisasi</option>
+                                            <option value="kuliah">Kuliah</option>
+                                            <option value="ujian">Ujian</option>
+                                            <option value="seminar">Seminar / Webinar</option>
+                                            <option value="pribadi">Pribadi</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {{-- Subtasks preview --}}
+                                <div class="ai-form-group" id="aiDraftSubtasksSection">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <label style="margin: 0; font-size: 12px;">Subtasks / Rincian Langkah:</label>
+                                        <button type="button" class="btn-text-xs" onclick="addAiDraftSubtask()">+ Tambah Subtask</button>
+                                    </div>
+                                    <div class="ai-draft-subtasks-list" id="aiDraftSubtasksList"></div>
+                                </div>
+
+                                <div class="ai-draft-actions">
+                                    <button type="submit" class="btn btn-primary" id="btnConfirmDraft">
+                                        ✅ Simpan ke Jadwal
+                                    </button>
+                                    <button type="button" class="btn btn-outline" onclick="resetAiDraft()">
+                                        Batal / Ulangi
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- TAB 2: Screenshot OCR --}}
+                <div class="ai-tab-content" id="aiTabContentOcr" style="display: none;">
+                    <p class="ai-tab-desc">
+                        Unggah tangkapan layar (screenshot) obrolan grup WhatsApp, silabus mata kuliah, atau slide tugas. AI akan memindai teks dan mengekstrak daftar tugas secara otomatis!
+                    </p>
+
+                    <div class="ai-ocr-dropzone" id="aiOcrDropzone" onclick="document.getElementById('aiOcrFileInput').click()">
+                        <input type="file" id="aiOcrFileInput" accept="image/*" style="display: none;" onchange="handleOcrImageUpload(this.files)">
+                        <div class="ai-dropzone-icon">📷</div>
+                        <div class="ai-dropzone-text">
+                            <strong>Klik untuk pilih screenshot</strong> atau tempel gambar (Ctrl+V)
+                        </div>
+                        <span class="ai-dropzone-sub">Mendukung file JPG, PNG, WEBP dari chat WA atau foto papan tulis</span>
+                    </div>
+
+                    {{-- OCR Progress --}}
+                    <div class="ai-ocr-progress-wrap" id="aiOcrProgressWrap" style="display: none;">
+                        <div class="ai-ocr-progress-bar">
+                            <div class="ai-ocr-progress-fill" id="aiOcrProgressFill" style="width: 0%;"></div>
+                        </div>
+                        <div class="ai-ocr-progress-status" id="aiOcrProgressStatus">Sedang membaca teks gambar...</div>
+                    </div>
+
+                    {{-- OCR Detected Drafts --}}
+                    <div class="ai-ocr-results-wrap" id="aiOcrResultsWrap" style="display: none;">
+                        <div class="ai-ocr-results-header">
+                            <h4 id="aiOcrFoundCount" style="margin: 0; color: #fff; font-size: 14px;">Ditemukan 0 Tugas</h4>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="saveAllSelectedOcrTasks()">
+                                + Tambah Tugas Terpilih
+                            </button>
+                        </div>
+                        <div class="ai-ocr-tasks-list" id="aiOcrTasksList"></div>
+                    </div>
+                </div>
+
+                {{-- TAB 3: Task Breakdown --}}
+                <div class="ai-tab-content" id="aiTabContentBreakdown" style="display: none;">
+                    <p class="ai-tab-desc">
+                        Punya tugas besar atau proyek akhir yang membingungkan? Biarkan AI memecahnya menjadi langkah-langkah kerja kecil beserta perkiraan waktu pengerjaan.
+                    </p>
+
+                    <div class="ai-form-group">
+                        <label for="aiBreakdownGoalInput">Nama Tugas / Proyek:</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" class="form-input" id="aiBreakdownGoalInput" placeholder='Contoh: "Buat aplikasi kasir untuk tugas akhir"'>
+                            <button type="button" class="btn btn-primary" style="white-space: nowrap;" onclick="generateTaskBreakdown()">
+                                ⚡ Pecah Sekarang
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ai-breakdown-result-wrap" id="aiBreakdownResultWrap" style="display: none;">
+                        <div class="ai-breakdown-header-card">
+                            <div>
+                                <h3 id="aiBreakdownResultTitle" style="margin: 0 0 4px 0; color: #fff; font-size: 14px;"></h3>
+                                <div style="font-size: 12px; color: #86efac;" id="aiBreakdownTotalDuration"></div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="saveBreakdownAsTask()">
+                                💾 Simpan Sebagai Tugas
+                            </button>
+                        </div>
+
+                        <div class="ai-breakdown-tips" id="aiBreakdownTips"></div>
+
+                        <div class="ai-breakdown-steps-list" id="aiBreakdownStepsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Quick Add FAB --}}
     <div class="fab-container" id="fabContainer">
         <button class="fab" id="fabBtn" aria-label="Quick add">
@@ -151,6 +372,10 @@
             </svg>
         </button>
         <div class="fab-menu" id="fabMenu">
+            <button class="fab-item fab-item-ai" data-action="ai-assistant" id="fabAiAssistant" onclick="openAiModal()">
+                <span style="font-size: 16px;">✨</span>
+                <span>AI Assistant</span>
+            </button>
             <button class="fab-item" data-action="add-task" id="fabAddTask">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 11l3 3L22 4"></path>

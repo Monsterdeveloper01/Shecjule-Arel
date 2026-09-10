@@ -1874,5 +1874,580 @@ window.showToast = function(message, type = 'info') {
     }, 3500);
 };
 
+// ==========================================
+// V3 — AI ASSISTANT CLIENT-SIDE SUITE
+// Voice Input, Natural Language, OCR, Breakdown
+// ==========================================
 
+let activeSpeechRecognition = null;
+let currentAiBreakdownData = null;
 
+// Modal Control
+window.openAiModal = function(tab = 'text', initialText = '') {
+    const overlay = document.getElementById('aiModalOverlay');
+    if (!overlay) return;
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    switchAiTab(tab);
+
+    if (initialText) {
+        if (tab === 'breakdown') {
+            const goalInput = document.getElementById('aiBreakdownGoalInput');
+            if (goalInput) {
+                goalInput.value = initialText;
+                generateTaskBreakdown();
+            }
+        } else {
+            const promptInput = document.getElementById('aiPromptInput');
+            if (promptInput) promptInput.value = initialText;
+        }
+    }
+};
+
+window.closeAiModal = function() {
+    const overlay = document.getElementById('aiModalOverlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    if (activeSpeechRecognition) {
+        activeSpeechRecognition.stop();
+        activeSpeechRecognition = null;
+    }
+};
+
+// Close on escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const aiOverlay = document.getElementById('aiModalOverlay');
+        if (aiOverlay && aiOverlay.classList.contains('open')) {
+            closeAiModal();
+        }
+    }
+});
+
+// Close when clicking overlay backdrop
+document.getElementById('aiModalOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'aiModalOverlay') {
+        closeAiModal();
+    }
+});
+
+// Switch Tab
+window.switchAiTab = function(tabName) {
+    const tabs = ['text', 'ocr', 'breakdown'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`aiTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const content = document.getElementById(`aiTabContent${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn) btn.classList.toggle('active', t === tabName);
+        if (content) {
+            content.style.display = t === tabName ? 'block' : 'none';
+            content.classList.toggle('active', t === tabName);
+        }
+    });
+};
+
+// Voice Input (Web Speech API with id-ID)
+window.toggleVoiceInput = function() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        showToast('Browser kamu belum mendukung Web Speech API. Gunakan Google Chrome atau Microsoft Edge.', 'info');
+        return;
+    }
+
+    const voiceBtn = document.getElementById('aiVoiceBtn');
+    const micLabel = document.getElementById('aiMicLabel');
+    const textarea = document.getElementById('aiPromptInput');
+
+    if (activeSpeechRecognition) {
+        activeSpeechRecognition.stop();
+        activeSpeechRecognition = null;
+        voiceBtn?.classList.remove('listening');
+        if (micLabel) micLabel.textContent = 'Bicara';
+        return;
+    }
+
+    try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'id-ID';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        recognition.onstart = function() {
+            activeSpeechRecognition = recognition;
+            voiceBtn?.classList.add('listening');
+            if (micLabel) micLabel.textContent = 'Mendengarkan...';
+            showToast('Mendengarkan suara kamu dalam Bahasa Indonesia... Silakan bicara.', 'info');
+        };
+
+        recognition.onresult = function(event) {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript;
+            }
+            if (textarea && transcript.trim()) {
+                textarea.value = transcript;
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.warn('Speech recognition error:', event.error);
+            voiceBtn?.classList.remove('listening');
+            if (micLabel) micLabel.textContent = 'Bicara';
+            activeSpeechRecognition = null;
+        };
+
+        recognition.onend = function() {
+            voiceBtn?.classList.remove('listening');
+            if (micLabel) micLabel.textContent = 'Bicara';
+            activeSpeechRecognition = null;
+            if (textarea && textarea.value.trim().length > 5) {
+                showToast('Suara berhasil dikenali! Klik "Proses dengan AI" untuk melihat draf.', 'success');
+            }
+        };
+
+        recognition.start();
+    } catch (err) {
+        console.error('Speech recognition exception:', err);
+        showToast('Gagal memulai mikrofon. Pastikan izin mikrofon telah diberikan.', 'error');
+    }
+};
+
+window.applyAiExample = function(text) {
+    const textarea = document.getElementById('aiPromptInput');
+    if (textarea) {
+        textarea.value = text;
+        textarea.focus();
+    }
+};
+
+// Process Natural Language Text
+window.processAiText = async function() {
+    const textarea = document.getElementById('aiPromptInput');
+    const promptText = textarea ? textarea.value.trim() : '';
+
+    if (!promptText) {
+        showToast('Ketik atau ucapkan teks jadwal terlebih dahulu', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnProcessAiText');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-sm"></span> Menganalisis dengan AI...';
+    }
+
+    try {
+        const res = await apiRequest('/ai/parse', 'POST', { text: promptText });
+        if (res.success && res.draft) {
+            populateAiDraft(res.draft);
+            showToast('Draf berhasil dibuat! Silakan tinjau sebelum disimpan.', 'success');
+        } else {
+            showToast('Gagal memproses input AI.', 'error');
+        }
+    } catch (err) {
+        console.error('AI parse error:', err);
+        showToast('Terjadi kesalahan saat memproses input AI.', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+};
+
+// Populate Draft Card Form
+function populateAiDraft(draft) {
+    const container = document.getElementById('aiDraftContainer');
+    if (!container) return;
+
+    document.getElementById('aiDraftType').value = draft.type || 'task';
+    document.getElementById('aiDraftTypeBadge').textContent = draft.type === 'event' ? '📅 Acara' : '📝 Tugas Kuliah';
+    document.getElementById('aiDraftTitle').value = draft.title || '';
+
+    const subjectGroup = document.getElementById('aiDraftSubjectGroup');
+    const taskExtras = document.getElementById('aiDraftTaskExtras');
+    const eventExtras = document.getElementById('aiDraftEventExtras');
+    const dateLabel = document.getElementById('aiDraftDateLabel');
+
+    if (draft.type === 'event') {
+        if (subjectGroup) subjectGroup.style.display = 'none';
+        if (taskExtras) taskExtras.style.display = 'none';
+        if (eventExtras) eventExtras.style.display = 'grid';
+        if (dateLabel) dateLabel.textContent = 'Waktu Acara';
+        document.getElementById('aiDraftLocation').value = draft.location || '';
+        if (draft.category) document.getElementById('aiDraftCategory').value = draft.category;
+    } else {
+        if (subjectGroup) subjectGroup.style.display = 'block';
+        if (taskExtras) taskExtras.style.display = 'grid';
+        if (eventExtras) eventExtras.style.display = 'none';
+        if (dateLabel) dateLabel.textContent = 'Deadline Tugas';
+        document.getElementById('aiDraftSubject').value = draft.subject || '';
+        document.getElementById('aiDraftDuration').value = draft.estimated_duration || 60;
+        if (draft.priority) document.getElementById('aiDraftPriority').value = draft.priority;
+    }
+
+    // Format deadline to datetime-local (YYYY-MM-DDTHH:MM)
+    if (draft.deadline) {
+        const dt = new Date(draft.deadline.replace(' ', 'T'));
+        if (!isNaN(dt.getTime())) {
+            const pad = (n) => String(n).padStart(2, '0');
+            const localIso = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+            document.getElementById('aiDraftDeadline').value = localIso;
+        }
+    }
+
+    // Render Subtasks
+    renderAiDraftSubtasks(draft.subtasks || []);
+
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderAiDraftSubtasks(subtasks) {
+    const listEl = document.getElementById('aiDraftSubtasksList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    subtasks.forEach(st => {
+        const title = typeof st === 'object' ? (st.title || '') : String(st);
+        addAiDraftSubtask(title);
+    });
+}
+
+window.addAiDraftSubtask = function(title = '') {
+    const listEl = document.getElementById('aiDraftSubtasksList');
+    if (!listEl) return;
+
+    const row = document.createElement('div');
+    row.className = 'ai-subtask-row';
+    row.innerHTML = `
+        <span class="subtask-dot">•</span>
+        <input type="text" class="form-input ai-subtask-input" value="${escapeHtml(title)}" placeholder="Nama langkah subtask...">
+        <button type="button" class="btn-remove-subtask" onclick="this.closest('.ai-subtask-row').remove()" title="Hapus">&times;</button>
+    `;
+    listEl.appendChild(row);
+};
+
+window.resetAiDraft = function() {
+    const container = document.getElementById('aiDraftContainer');
+    if (container) container.style.display = 'none';
+};
+
+// Confirm & Save Draft (Rule 9 compliance)
+window.confirmAiDraft = async function(e) {
+    e.preventDefault();
+
+    const type = document.getElementById('aiDraftType').value;
+    const title = document.getElementById('aiDraftTitle').value.trim();
+    const deadline = document.getElementById('aiDraftDeadline').value;
+
+    if (!title) {
+        showToast('Judul tidak boleh kosong', 'error');
+        return;
+    }
+
+    const payload = {
+        type,
+        title,
+        deadline,
+    };
+
+    if (type === 'event') {
+        payload.start_date = deadline;
+        payload.location = document.getElementById('aiDraftLocation').value.trim() || null;
+        payload.category = document.getElementById('aiDraftCategory').value;
+    } else {
+        payload.subject = document.getElementById('aiDraftSubject').value.trim() || null;
+        payload.priority = document.getElementById('aiDraftPriority').value;
+        payload.estimated_duration = parseInt(document.getElementById('aiDraftDuration').value, 10) || 60;
+
+        // Gather subtasks
+        const subtaskInputs = document.querySelectorAll('.ai-subtask-input');
+        const subtasks = [];
+        subtaskInputs.forEach(input => {
+            const val = input.value.trim();
+            if (val) {
+                subtasks.push({ title: val, completed: false });
+            }
+        });
+        payload.subtasks = subtasks;
+    }
+
+    const btn = document.getElementById('btnConfirmDraft');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Menyimpan...';
+    }
+
+    try {
+        const res = await apiRequest('/ai/confirm-draft', 'POST', payload);
+        if (res.success) {
+            showToast(res.message || 'Berhasil disimpan!', 'success');
+            closeAiModal();
+            setTimeout(() => location.reload(), 600);
+        } else {
+            showToast(res.message || 'Gagal menyimpan draf.', 'error');
+        }
+    } catch (err) {
+        console.error('Confirm draft error:', err);
+        showToast('Gagal menyimpan draf.', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '✅ Simpan ke Jadwal';
+        }
+    }
+};
+
+// OCR Screenshot Processing
+window.handleOcrImageUpload = async function(files) {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    const progressWrap = document.getElementById('aiOcrProgressWrap');
+    const progressFill = document.getElementById('aiOcrProgressFill');
+    const progressStatus = document.getElementById('aiOcrProgressStatus');
+    const resultsWrap = document.getElementById('aiOcrResultsWrap');
+
+    if (resultsWrap) resultsWrap.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'block';
+
+    try {
+        if (progressFill) progressFill.style.width = '20%';
+        if (progressStatus) progressStatus.textContent = 'Memuat OCR Engine...';
+
+        let extractedText = '';
+        if (typeof Tesseract !== 'undefined') {
+            const worker = await Tesseract.createWorker(['ind', 'eng']);
+            if (progressFill) progressFill.style.width = '60%';
+            if (progressStatus) progressStatus.textContent = 'Mengenali teks pada screenshot...';
+
+            const ret = await worker.recognize(file);
+            await worker.terminate();
+            extractedText = ret.data.text || '';
+        } else {
+            throw new Error('Tesseract library not loaded');
+        }
+
+        if (progressFill) progressFill.style.width = '90%';
+        if (progressStatus) progressStatus.textContent = 'Menganalisis tugas dengan AI...';
+
+        const res = await apiRequest('/ai/parse-ocr', 'POST', { text: extractedText });
+
+        if (progressFill) progressFill.style.width = '100%';
+        setTimeout(() => {
+            if (progressWrap) progressWrap.style.display = 'none';
+        }, 400);
+
+        if (res.success && res.drafts && res.drafts.length > 0) {
+            renderOcrResults(res.drafts);
+            showToast(`Berhasil menemukan ${res.drafts.length} tugas dari gambar!`, 'success');
+        } else {
+            showToast('Tidak ada tugas terstruktur yang terdeteksi dari gambar ini.', 'info');
+        }
+    } catch (err) {
+        console.error('OCR Error:', err);
+        if (progressWrap) progressWrap.style.display = 'none';
+        showToast('Gagal memindai gambar OCR. Pastikan format gambar valid.', 'error');
+    }
+};
+
+function renderOcrResults(drafts) {
+    const wrap = document.getElementById('aiOcrResultsWrap');
+    const countEl = document.getElementById('aiOcrFoundCount');
+    const listEl = document.getElementById('aiOcrTasksList');
+
+    if (!wrap || !listEl) return;
+    listEl.innerHTML = '';
+    if (countEl) countEl.textContent = `Ditemukan ${drafts.length} Tugas dari Gambar`;
+
+    window.activeOcrDrafts = drafts;
+
+    drafts.forEach((d, idx) => {
+        const item = document.createElement('div');
+        item.className = 'ai-ocr-task-item';
+        item.innerHTML = `
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                <input type="checkbox" id="ocr_task_chk_${idx}" class="ocr-task-chk" checked data-idx="${idx}">
+                <div style="flex: 1;">
+                    <strong style="color: #fff; font-size: 14px;">${escapeHtml(d.title)}</strong>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span>📅 ${d.deadline ? d.deadline.slice(0, 16) : 'Besok'}</span>
+                        <span>⏱️ ${d.estimated_duration || 60} menit</span>
+                        ${d.subject ? `<span>📚 ${escapeHtml(d.subject)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        listEl.appendChild(item);
+    });
+
+    wrap.style.display = 'block';
+}
+
+window.saveAllSelectedOcrTasks = async function() {
+    const checkboxes = document.querySelectorAll('.ocr-task-chk:checked');
+    if (checkboxes.length === 0) {
+        showToast('Pilih minimal satu tugas untuk disimpan', 'error');
+        return;
+    }
+
+    const drafts = window.activeOcrDrafts || [];
+    let savedCount = 0;
+
+    showToast(`Menyimpan ${checkboxes.length} tugas...`, 'info');
+
+    for (const chk of checkboxes) {
+        const idx = parseInt(chk.getAttribute('data-idx'), 10);
+        const d = drafts[idx];
+        if (d) {
+            try {
+                await apiRequest('/ai/confirm-draft', 'POST', {
+                    type: d.type || 'task',
+                    title: d.title,
+                    subject: d.subject || null,
+                    deadline: d.deadline || null,
+                    priority: d.priority || 'medium',
+                    estimated_duration: d.estimated_duration || 60,
+                    subtasks: d.subtasks || [],
+                });
+                savedCount++;
+            } catch (e) {
+                console.error('Error saving OCR task:', e);
+            }
+        }
+    }
+
+    showToast(`${savedCount} tugas berhasil ditambahkan ke jadwal!`, 'success');
+    closeAiModal();
+    setTimeout(() => location.reload(), 600);
+};
+
+// Task Breakdown
+window.generateTaskBreakdown = async function() {
+    const input = document.getElementById('aiBreakdownGoalInput');
+    const goal = input ? input.value.trim() : '';
+
+    if (!goal) {
+        showToast('Ketik nama tugas atau proyek terlebih dahulu', 'error');
+        return;
+    }
+
+    try {
+        const res = await apiRequest('/ai/breakdown', 'POST', { title: goal });
+        if (res.success && res.breakdown) {
+            currentAiBreakdownData = res.breakdown;
+            renderBreakdownResult(res.breakdown);
+        } else {
+            showToast('Gagal memecah tugas.', 'error');
+        }
+    } catch (err) {
+        console.error('Breakdown error:', err);
+        showToast('Terjadi kesalahan saat memecah tugas.', 'error');
+    }
+};
+
+function renderBreakdownResult(breakdown) {
+    const wrap = document.getElementById('aiBreakdownResultWrap');
+    const titleEl = document.getElementById('aiBreakdownResultTitle');
+    const durEl = document.getElementById('aiBreakdownTotalDuration');
+    const tipsEl = document.getElementById('aiBreakdownTips');
+    const listEl = document.getElementById('aiBreakdownStepsList');
+
+    if (!wrap || !listEl) return;
+
+    if (titleEl) titleEl.textContent = breakdown.goal;
+    if (durEl) durEl.textContent = `⏱️ Total Perkiraan Waktu: ~${Math.round(breakdown.total_estimated_minutes / 60 * 10) / 10} Jam (${breakdown.total_estimated_minutes} Menit)`;
+    if (tipsEl) tipsEl.innerHTML = breakdown.tips ? `💡 <strong>Tips AI:</strong> ${escapeHtml(breakdown.tips)}` : '';
+
+    listEl.innerHTML = '';
+    (breakdown.steps || []).forEach((st, idx) => {
+        const stepCard = document.createElement('div');
+        stepCard.className = 'ai-breakdown-step-card';
+        stepCard.innerHTML = `
+            <div class="step-num">${idx + 1}</div>
+            <div style="flex: 1;">
+                <strong style="color: #fff; font-size: 13px;">${escapeHtml(st.title)}</strong>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                    <span class="step-phase-tag">${escapeHtml(st.phase || 'Eksekusi')}</span>
+                    <span>~${st.estimated_minutes} menit</span>
+                </div>
+            </div>
+        `;
+        listEl.appendChild(stepCard);
+    });
+
+    wrap.style.display = 'block';
+}
+
+window.saveBreakdownAsTask = async function() {
+    if (!currentAiBreakdownData) return;
+
+    const subtasks = (currentAiBreakdownData.steps || []).map(st => ({
+        title: `${st.title} (${st.estimated_minutes}m)`,
+        completed: false,
+    }));
+
+    try {
+        const res = await apiRequest('/ai/confirm-draft', 'POST', {
+            type: 'task',
+            title: currentAiBreakdownData.goal,
+            estimated_duration: currentAiBreakdownData.total_estimated_minutes,
+            priority: 'high',
+            deadline: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 19).replace('T', ' '),
+            subtasks,
+        });
+
+        if (res.success) {
+            showToast('Tugas berhasil dibuat beserta rincian subtasks!', 'success');
+            closeAiModal();
+            setTimeout(() => location.reload(), 600);
+        }
+    } catch (err) {
+        console.error('Save breakdown error:', err);
+        showToast('Gagal menyimpan tugas.', 'error');
+    }
+};
+
+window.openAiBreakdownForTask = function(title, taskId) {
+    openAiModal('breakdown', title);
+};
+
+// Toggle Subtask Checkbox on Task Card
+window.toggleTaskSubtask = async function(taskId, subtaskIndex, isChecked) {
+    try {
+        const res = await apiRequest(`/tasks/${taskId}/subtask-toggle`, 'PATCH', {
+            index: subtaskIndex,
+            completed: isChecked,
+        });
+
+        if (res.success) {
+            showToast(isChecked ? 'Subtask diselesaikan! 🎉' : 'Subtask diperbarui', 'success');
+        }
+    } catch (err) {
+        console.error('Toggle subtask error:', err);
+        showToast('Gagal memperbarui status subtask', 'error');
+    }
+};
+
+// Global Paste (Ctrl+V) listener for screenshots
+document.addEventListener('paste', (e) => {
+    if (!e.clipboardData || !e.clipboardData.items) return;
+    const items = e.clipboardData.items;
+
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            const blob = items[i].getAsFile();
+            if (blob) {
+                openAiModal('ocr');
+                handleOcrImageUpload([blob]);
+                showToast('Gambar dari clipboard berhasil dideteksi! Memulai OCR...', 'info');
+                break;
+            }
+        }
+    }
+});

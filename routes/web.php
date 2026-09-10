@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiAssistantController;
 use App\Http\Controllers\CourseScheduleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
@@ -28,6 +29,7 @@ Route::middleware('pin.auth')->group(function () {
 
     Route::resource('tasks', TaskController::class)->except(['create', 'show', 'edit']);
     Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggleStatus'])->name('tasks.toggle');
+    Route::patch('/tasks/{task}/subtask-toggle', [TaskController::class, 'toggleSubtask'])->name('tasks.subtask-toggle');
 
     Route::resource('schedules', CourseScheduleController::class)->except(['create', 'show', 'edit']);
     Route::post('/schedules/bulk-import', [CourseScheduleController::class, 'bulkImport'])->name('schedules.bulk-import');
@@ -41,4 +43,13 @@ Route::middleware('pin.auth')->group(function () {
     Route::post('/push/test', [PushSubscriptionController::class, 'sendTest'])->name('push.test');
     Route::post('/push/test-schedule', [PushSubscriptionController::class, 'sendScheduleTest'])->name('push.test-schedule');
     Route::post('/push/check-deadlines', [PushSubscriptionController::class, 'checkDeadlines'])->name('push.check');
+
+    // AI Assistant (V3)
+    Route::prefix('ai')->name('ai.')->group(function () {
+        Route::post('/parse', [AiAssistantController::class, 'parseInput'])->name('parse');
+        Route::post('/breakdown', [AiAssistantController::class, 'breakdown'])->name('breakdown');
+        Route::post('/parse-ocr', [AiAssistantController::class, 'parseOcr'])->name('parse-ocr');
+        Route::post('/confirm-draft', [AiAssistantController::class, 'confirmDraft'])->name('confirm-draft');
+        Route::get('/daily-insight', [AiAssistantController::class, 'dailyInsight'])->name('daily-insight');
+    });
 });

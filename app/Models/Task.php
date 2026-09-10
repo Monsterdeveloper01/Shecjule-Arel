@@ -35,6 +35,7 @@ class Task extends Model
         'status',
         'estimated_duration',
         'progress',
+        'subtasks',
         'priority_score',
         'priority_level',
         'risk_score',
@@ -52,6 +53,7 @@ class Task extends Model
             'deadline' => 'datetime',
             'estimated_duration' => 'integer',
             'progress' => 'integer',
+            'subtasks' => 'array',
             'priority_score' => 'integer',
             'risk_score' => 'integer',
         ];
@@ -159,5 +161,25 @@ class Task extends Model
     public function getRiskResultAttribute(): DeadlineRiskResult
     {
         return app(DeadlineRiskEngine::class)->calculate($this);
+    }
+
+    /**
+     * Total number of subtasks.
+     */
+    public function getTotalSubtasksCountAttribute(): int
+    {
+        return is_array($this->subtasks) ? count($this->subtasks) : 0;
+    }
+
+    /**
+     * Number of completed subtasks.
+     */
+    public function getCompletedSubtasksCountAttribute(): int
+    {
+        if (! is_array($this->subtasks)) {
+            return 0;
+        }
+
+        return count(array_filter($this->subtasks, fn ($st) => ! empty($st['completed'])));
     }
 }

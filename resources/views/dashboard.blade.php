@@ -81,6 +81,25 @@
             </div>
         </div>
 
+        {{-- AI Daily Briefing (V3.5) --}}
+        @if(!empty($todayIntelligence['aiInsight']))
+        <div class="ai-daily-briefing-box">
+            <div class="ai-briefing-glow"></div>
+            <div class="ai-briefing-header">
+                <div class="ai-briefing-title">
+                    <span class="ai-sparkle-icon">✨</span>
+                    <strong>AI Daily Briefing</strong>
+                </div>
+                <button type="button" class="ai-open-assistant-btn" onclick="openAiModal()">
+                    Tanya AI ➔
+                </button>
+            </div>
+            <p class="ai-briefing-body">
+                {!! nl2br(e($todayIntelligence['aiInsight'])) !!}
+            </p>
+        </div>
+        @endif
+
         <div class="intel-grid">
             {{-- 1. Next Up --}}
             <div class="intel-section-box">
