@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Services\DeadlineRiskEngine;
 use App\Services\PriorityEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,10 @@ class TaskController extends Controller
             $query->where('priority_level', $request->priority_level);
         }
 
+        if ($request->filled('risk_level')) {
+            $query->byRisk($request->risk_level);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -33,7 +38,9 @@ class TaskController extends Controller
             $query->where('subject', $request->subject);
         }
 
-        if ($request->get('sort') === 'deadline') {
+        if ($request->get('sort') === 'risk') {
+            $query->orderByDesc('risk_score')->orderBy('deadline');
+        } elseif ($request->get('sort') === 'deadline') {
             $query->orderBy('deadline');
         } else {
             // Default sort: computed priority score descending, then deadline
@@ -52,7 +59,7 @@ class TaskController extends Controller
     /**
      * Store a new task with optional multiple file attachments.
      */
-    public function store(Request $request, PriorityEngine $priorityEngine): JsonResponse
+    public function store(Request $request, PriorityEngine $priorityEngine, DeadlineRiskEngine $riskEngine): JsonResponse
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -71,6 +78,7 @@ class TaskController extends Controller
 
         $task = Task::create($validated);
         $priorityEngine->recalculateAndPersist($task);
+        $riskEngine->recalculateAndPersist($task);
 
         if ($request->hasFile('files')) {
             $task->saveAttachments($request->file('files'), 'uploads/tasks');
@@ -84,7 +92,7 @@ class TaskController extends Controller
     /**
      * Update a task, attach new files, and delete selected existing files.
      */
-    public function update(Request $request, Task $task, PriorityEngine $priorityEngine): JsonResponse
+    public function update(Request $request, Task $task, PriorityEngine $priorityEngine, DeadlineRiskEngine $riskEngine): JsonResponse
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -113,6 +121,7 @@ class TaskController extends Controller
 
         $task->update($validated);
         $priorityEngine->recalculateAndPersist($task);
+        $riskEngine->recalculateAndPersist($task);
         $task->load('attachments');
 
         return response()->json(['success' => true, 'task' => $task]);
@@ -131,7 +140,7 @@ class TaskController extends Controller
     /**
      * Toggle task status (pending → in_progress → completed → pending).
      */
-    public function toggleStatus(Task $task, PriorityEngine $priorityEngine): JsonResponse
+    public function toggleStatus(Task $task, PriorityEngine $priorityEngine, DeadlineRiskEngine $riskEngine): JsonResponse
     {
         $statusFlow = [
             'pending' => 'in_progress',
@@ -141,6 +150,7 @@ class TaskController extends Controller
 
         $task->update(['status' => $statusFlow[$task->status] ?? 'pending']);
         $priorityEngine->recalculateAndPersist($task);
+        $riskEngine->recalculateAndPersist($task);
 
         return response()->json(['success' => true, 'task' => $task]);
     }

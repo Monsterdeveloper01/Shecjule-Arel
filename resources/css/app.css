@@ -3264,3 +3264,100 @@ body {
     background: linear-gradient(90deg, #4ade80, #22c55e);
 }
 
+/* ========================================================
+   DEADLINE RISK ENGINE (V2.2) STYLES
+   ======================================================== */
+.risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.risk-badge.risk-kritis {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    animation: pulse-risk 2s infinite;
+}
+
+.risk-badge.risk-tinggi {
+    background: rgba(249, 115, 22, 0.2);
+    color: #fdba74;
+    border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+.risk-badge.risk-sedang {
+    background: rgba(234, 179, 8, 0.2);
+    color: #fde047;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.risk-badge.risk-rendah {
+    background: rgba(163, 230, 53, 0.15);
+    color: #bef264;
+    border: 1px solid rgba(163, 230, 53, 0.3);
+}
+
+.risk-badge.risk-aman {
+    background: rgba(34, 197, 94, 0.15);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+@keyframes pulse-risk {
+    0%, 100% {
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 14px rgba(239, 68, 68, 0.6);
+    }
+}
+
+.alert-card.alert-risk {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08));
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-left: 4px solid #ef4444;
+}
+
+.alert-risk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.risk-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    margin-top: 6px;
+    gap: 8px;
+}
+
+.risk-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.risk-comparison-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+

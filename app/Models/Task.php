@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\DataObjects\DeadlineRiskResult;
 use App\DataObjects\PriorityResult;
 use App\Models\Concerns\HasAttachment;
+use App\Services\DeadlineRiskEngine;
 use App\Services\PriorityEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +37,8 @@ class Task extends Model
         'progress',
         'priority_score',
         'priority_level',
+        'risk_score',
+        'risk_level',
     ];
 
     /**
@@ -49,6 +53,7 @@ class Task extends Model
             'estimated_duration' => 'integer',
             'progress' => 'integer',
             'priority_score' => 'integer',
+            'risk_score' => 'integer',
         ];
     }
 
@@ -123,10 +128,36 @@ class Task extends Model
     }
 
     /**
+     * Scope: filter tasks by risk level.
+     */
+    public function scopeByRisk(Builder $query, string $riskLevel): Builder
+    {
+        return $query->where('risk_level', $riskLevel);
+    }
+
+    /**
+     * Scope: high or critical risk tasks.
+     */
+    public function scopeHighRisk(Builder $query): Builder
+    {
+        return $query->whereIn('risk_level', ['KRITIS', 'TINGGI'])
+            ->where('status', '!=', 'completed')
+            ->orderByDesc('risk_score');
+    }
+
+    /**
      * Calculate and return the PriorityResult for this task.
      */
     public function getPriorityResultAttribute(): PriorityResult
     {
         return app(PriorityEngine::class)->calculate($this);
+    }
+
+    /**
+     * Calculate and return the DeadlineRiskResult for this task.
+     */
+    public function getRiskResultAttribute(): DeadlineRiskResult
+    {
+        return app(DeadlineRiskEngine::class)->calculate($this);
     }
 }

@@ -6,6 +6,7 @@ use App\Models\CourseSchedule;
 use App\Models\Event;
 use App\Models\Note;
 use App\Models\Task;
+use App\Services\DeadlineRiskEngine;
 use App\Services\PriorityEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,10 +17,11 @@ class DashboardController extends Controller
     /**
      * Show the main dashboard with calendar and today overview.
      */
-    public function index(Request $request, PriorityEngine $priorityEngine): View
+    public function index(Request $request, PriorityEngine $priorityEngine, DeadlineRiskEngine $riskEngine): View
     {
-        // Batch recalculate all active task priorities
+        // Batch recalculate all active task priorities and deadline risks
         $priorityEngine->recalculateAllAndPersist();
+        $riskEngine->recalculateAllAndPersist();
 
         $today = now()->toDateString();
 
@@ -30,6 +32,7 @@ class DashboardController extends Controller
 
         $overdueTasks = Task::overdue()->byComputedPriority()->get();
         $upcomingTasks = Task::upcoming()->byComputedPriority()->limit(5)->get();
+        $highRiskTasks = $riskEngine->getHighRiskTasks();
 
         $stats = [
             'pending' => Task::where('status', 'pending')->count(),
@@ -39,6 +42,7 @@ class DashboardController extends Controller
                 ->count(),
             'overdue' => Task::overdue()->count(),
             'today_classes' => $todaySchedules->count(),
+            'high_risk' => $highRiskTasks->count(),
         ];
 
         return view('dashboard', compact(
@@ -48,6 +52,7 @@ class DashboardController extends Controller
             'todaySchedules',
             'overdueTasks',
             'upcomingTasks',
+            'highRiskTasks',
             'stats',
         ));
     }

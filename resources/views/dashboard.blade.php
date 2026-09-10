@@ -131,6 +131,46 @@
             </div>
             @endif
 
+            {{-- Deadline Risk Alert Banner (V2.2) --}}
+            @if($highRiskTasks->count() > 0)
+            <div class="alert-card alert-risk glass-card">
+                <div class="alert-risk-header">
+                    <h3 class="section-title section-title-danger" style="margin-bottom: 0;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 2 22 22 22 12 2"></polygon>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        Risiko Deadline Tinggi ({{ $highRiskTasks->count() }})
+                    </h3>
+                    <span style="font-size: 11px; color: #f87171; font-weight: 700;">Waktu Mepet</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                    @foreach($highRiskTasks->take(3) as $rtask)
+                    <div class="risk-item-row">
+                        <div class="risk-item-info">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <strong style="font-size: 12px; color: var(--text-primary);">{{ $rtask->title }}</strong>
+                                <span class="risk-badge risk-{{ strtolower($rtask->risk_level ?? 'tinggi') }}">
+                                    ⚠️ {{ $rtask->risk_level }}
+                                </span>
+                            </div>
+                            <span style="font-size: 11px; color: #fca5a5;">
+                                ⏱️ {{ $rtask->riskResult->reason }}
+                            </span>
+                        </div>
+                        <button class="action-btn-sm" onclick="editTask({{ $rtask->id }}, {{ json_encode($rtask) }})" title="Atur Tugas">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             {{-- Today Course Schedules --}}
             <div class="today-section glass-card schedule-today-card">
                 <div class="section-title-wrap" style="display: flex; justify-content: space-between; align-items: center;">
@@ -195,6 +235,11 @@
                                 @if($task->status !== 'completed' && $task->priority_level)
                                     <span class="priority-engine-badge level-{{ strtolower($task->priority_level) }}" title="{{ $task->priorityResult->reason }}">
                                         {{ $task->priority_level }} {{ $task->priority_score }}
+                                    </span>
+                                @endif
+                                @if($task->status !== 'completed' && $task->risk_level && in_array($task->risk_level, ['KRITIS', 'TINGGI', 'SEDANG']))
+                                    <span class="risk-badge risk-{{ strtolower($task->risk_level) }}" title="Risiko: {{ $task->riskResult->reason }}">
+                                        ⚠️ {{ $task->risk_level }}
                                     </span>
                                 @endif
                             </div>
@@ -309,6 +354,11 @@
                                 @if($task->priority_level)
                                 <span class="priority-engine-badge level-{{ strtolower($task->priority_level) }}" title="{{ $task->priorityResult->reason }}">
                                     {{ $task->priority_level }} {{ $task->priority_score }}
+                                </span>
+                                @endif
+                                @if($task->risk_level && in_array($task->risk_level, ['KRITIS', 'TINGGI', 'SEDANG']))
+                                <span class="risk-badge risk-{{ strtolower($task->risk_level) }}" title="Risiko: {{ $task->riskResult->reason }}">
+                                    ⚠️ {{ $task->risk_level }}
                                 </span>
                                 @endif
                             </div>

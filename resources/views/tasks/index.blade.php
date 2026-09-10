@@ -15,11 +15,19 @@
                 <option value="low" {{ request('priority') === 'low' ? 'selected' : '' }}>🟢 Low</option>
             </select>
             <select class="filter-select" id="filterPriorityLevel" onchange="applyFilters()">
-                <option value="">Semua Level Engine</option>
+                <option value="">Semua Level Prioritas</option>
                 <option value="KRITIS" {{ request('priority_level') === 'KRITIS' ? 'selected' : '' }}>🔴 Kritis</option>
                 <option value="TINGGI" {{ request('priority_level') === 'TINGGI' ? 'selected' : '' }}>🟠 Tinggi</option>
                 <option value="SEDANG" {{ request('priority_level') === 'SEDANG' ? 'selected' : '' }}>🟡 Sedang</option>
                 <option value="RENDAH" {{ request('priority_level') === 'RENDAH' ? 'selected' : '' }}>🟢 Rendah</option>
+            </select>
+            <select class="filter-select" id="filterRiskLevel" onchange="applyFilters()">
+                <option value="">Semua Tingkat Risiko</option>
+                <option value="KRITIS" {{ request('risk_level') === 'KRITIS' ? 'selected' : '' }}>🔴 Risiko Kritis</option>
+                <option value="TINGGI" {{ request('risk_level') === 'TINGGI' ? 'selected' : '' }}>🟠 Risiko Tinggi</option>
+                <option value="SEDANG" {{ request('risk_level') === 'SEDANG' ? 'selected' : '' }}>🟡 Risiko Sedang</option>
+                <option value="RENDAH" {{ request('risk_level') === 'RENDAH' ? 'selected' : '' }}>🟢 Risiko Rendah</option>
+                <option value="AMAN" {{ request('risk_level') === 'AMAN' ? 'selected' : '' }}>🟢 Risiko Aman</option>
             </select>
             <select class="filter-select" id="filterStatus" onchange="applyFilters()">
                 <option value="">Semua Status</option>
@@ -28,7 +36,8 @@
                 <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
             </select>
             <select class="filter-select" id="filterSort" onchange="applyFilters()">
-                <option value="priority_score" {{ request('sort') !== 'deadline' ? 'selected' : '' }}>⚡ Urut: Skor Prioritas</option>
+                <option value="priority_score" {{ request('sort') !== 'deadline' && request('sort') !== 'risk' ? 'selected' : '' }}>⚡ Urut: Skor Prioritas</option>
+                <option value="risk" {{ request('sort') === 'risk' ? 'selected' : '' }}>⚠️ Urut: Risiko Tertinggi</option>
                 <option value="deadline" {{ request('sort') === 'deadline' ? 'selected' : '' }}>📅 Urut: Deadline Terdekat</option>
             </select>
             @if($subjects->count() > 0)
@@ -73,6 +82,11 @@
                             ⚡ {{ $task->priority_level }} ({{ $task->priority_score }})
                         </span>
                     @endif
+                    @if($task->status !== 'completed' && $task->risk_level)
+                        <span class="risk-badge risk-{{ strtolower($task->risk_level) }}" title="Risiko Keterlambatan: {{ $task->riskResult->reason }}">
+                            ⚠️ {{ $task->risk_level }} ({{ $task->risk_score }})
+                        </span>
+                    @endif
                 </div>
                 <span class="priority-badge priority-{{ $task->priority }}" title="User Importance">{{ ucfirst($task->priority) }}</span>
             </div>
@@ -86,22 +100,28 @@
                     <span style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
                         <span>Prioritas:</span>
                         <strong class="text-level-{{ strtolower($task->priority_level ?? 'rendah') }}">{{ $task->priority_level ?? 'RENDAH' }} ({{ $task->priority_score ?? 0 }}/100)</strong>
+                        <span style="margin: 0 4px; opacity: 0.4;">|</span>
+                        <span>Risiko:</span>
+                        <strong class="text-level-{{ strtolower($task->risk_level ?? 'aman') }}">{{ $task->risk_level ?? 'AMAN' }} ({{ $task->risk_score ?? 0 }}/100)</strong>
                     </span>
                     <span style="font-size: 11px; color: var(--text-tertiary);">
-                        ⏱️ Est: {{ $task->estimated_duration ? round($task->estimated_duration / 60, 1) . ' jam' : '2 jam' }}
-                        @if($task->remaining_duration > 0)
-                            · Sisa ~{{ round($task->remaining_duration / 60, 1) }} jam
+                        ⏱️ Sisa Kerja: ~{{ round($task->remaining_duration / 60, 1) }}j
+                        @if($task->deadline && $task->riskResult->availableHours > 0 && $task->riskResult->availableHours < 900)
+                            · Luang: ~{{ $task->riskResult->availableHours }}j
                         @endif
                     </span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                    <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;" title="Skor Prioritas: {{ $task->priority_score ?? 0 }}%">
                         <div class="priority-progress-bar-fill level-{{ strtolower($task->priority_level ?? 'rendah') }}" style="width: {{ $task->priority_score ?? 0 }}%; height: 100%; border-radius: 3px;"></div>
                     </div>
                     <span style="font-size: 11px; color: var(--text-secondary); min-width: 80px; text-align: right;">Progress: {{ $task->progress ?? 0 }}%</span>
                 </div>
-                <div style="font-size: 11px; color: var(--text-secondary);">
-                    💡 {{ $task->priorityResult->reason }}
+                <div style="font-size: 11px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px;">
+                    <div>💡 {{ $task->priorityResult->reason }}</div>
+                    @if($task->risk_level && in_array($task->risk_level, ['KRITIS', 'TINGGI', 'SEDANG']))
+                    <div style="color: #fca5a5;">⚠️ {{ $task->riskResult->reason }}</div>
+                    @endif
                 </div>
             </div>
             @endif
@@ -182,6 +202,8 @@
 function applyFilters() {
     const priority = document.getElementById('filterPriority').value;
     const priorityLevel = document.getElementById('filterPriorityLevel').value;
+    const riskLevelEl = document.getElementById('filterRiskLevel');
+    const riskLevel = riskLevelEl ? riskLevelEl.value : '';
     const status = document.getElementById('filterStatus').value;
     const sort = document.getElementById('filterSort').value;
     const subjectEl = document.getElementById('filterSubject');
@@ -190,6 +212,7 @@ function applyFilters() {
     const params = new URLSearchParams();
     if (priority) params.set('priority', priority);
     if (priorityLevel) params.set('priority_level', priorityLevel);
+    if (riskLevel) params.set('risk_level', riskLevel);
     if (status) params.set('status', status);
     if (sort) params.set('sort', sort);
     if (subject) params.set('subject', subject);
