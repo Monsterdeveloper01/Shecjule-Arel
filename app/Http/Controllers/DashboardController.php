@@ -8,6 +8,7 @@ use App\Models\Note;
 use App\Models\Task;
 use App\Services\DeadlineRiskEngine;
 use App\Services\PriorityEngine;
+use App\Services\TodayIntelligenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,8 +18,12 @@ class DashboardController extends Controller
     /**
      * Show the main dashboard with calendar and today overview.
      */
-    public function index(Request $request, PriorityEngine $priorityEngine, DeadlineRiskEngine $riskEngine): View
-    {
+    public function index(
+        Request $request,
+        PriorityEngine $priorityEngine,
+        DeadlineRiskEngine $riskEngine,
+        TodayIntelligenceService $todayIntelligenceService
+    ): View {
         // Batch recalculate all active task priorities and deadline risks
         $priorityEngine->recalculateAllAndPersist();
         $riskEngine->recalculateAllAndPersist();
@@ -33,6 +38,8 @@ class DashboardController extends Controller
         $overdueTasks = Task::overdue()->byComputedPriority()->get();
         $upcomingTasks = Task::upcoming()->byComputedPriority()->limit(5)->get();
         $highRiskTasks = $riskEngine->getHighRiskTasks();
+
+        $todayIntelligence = $todayIntelligenceService->getTodayHub();
 
         $stats = [
             'pending' => Task::where('status', 'pending')->count(),
@@ -53,6 +60,7 @@ class DashboardController extends Controller
             'overdueTasks',
             'upcomingTasks',
             'highRiskTasks',
+            'todayIntelligence',
             'stats',
         ));
     }

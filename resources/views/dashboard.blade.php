@@ -57,6 +57,103 @@
         </div>
     </div>
 
+    {{-- TODAY INTELLIGENCE HUB (V2.7) --}}
+    @if(isset($todayIntelligence))
+    <div class="intelligence-card">
+        <div class="intel-header">
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 16px;">🧠</span>
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #fff;">Today Intelligence Hub</h3>
+                    <span class="intel-badge-overload overload-{{ strtolower($todayIntelligence['overload']->level) }}">
+                        Status Beban: {{ $todayIntelligence['overload']->level }}
+                    </span>
+                </div>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary);">
+                    {{ $todayIntelligence['overload']->headline }} — {{ $todayIntelligence['overload']->recommendation }}
+                </p>
+            </div>
+            <div>
+                <span style="font-size: 11px; color: var(--text-tertiary);">Total Waktu Luang Hari Ini:</span>
+                <div style="font-size: 14px; font-weight: 800; color: #86efac;">
+                    ⏱️ {{ $todayIntelligence['totalFreeHoursToday'] }} Jam Tersedia
+                </div>
+            </div>
+        </div>
+
+        <div class="intel-grid">
+            {{-- 1. Next Up --}}
+            <div class="intel-section-box">
+                <div class="intel-box-label">
+                    <span>📌 Agenda Berikutnya</span>
+                </div>
+                @if($todayIntelligence['nextUp'])
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <strong style="font-size: 13px; color: #fff;">{{ $todayIntelligence['nextUp']['title'] }}</strong>
+                        <span style="font-size: 11px; color: #c7d2fe;">
+                            ⏰ {{ $todayIntelligence['nextUp']['time'] }}
+                            @if($todayIntelligence['nextUp']['location'])
+                                · 📍 {{ $todayIntelligence['nextUp']['location'] }}
+                            @endif
+                        </span>
+                        <span style="font-size: 11px; color: #f59e0b; font-weight: 600; margin-top: 2px;">
+                            {{ $todayIntelligence['nextUp']['countdown'] }}
+                        </span>
+                    </div>
+                @else
+                    <span style="font-size: 12px; color: var(--text-tertiary);">✨ Tidak ada agenda lagi hari ini.</span>
+                @endif
+            </div>
+
+            {{-- 2. Smart Recommendation --}}
+            <div class="intel-section-box">
+                <div class="intel-box-label">
+                    <span>🎯 Rekomendasi Pengerjaan Tugas</span>
+                </div>
+                @if($todayIntelligence['recommendation'])
+                    @php $rec = $todayIntelligence['recommendation']; @endphp
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                            <strong style="font-size: 13px; color: #fff;">{{ $rec->task->title }}</strong>
+                            <span class="risk-badge risk-{{ strtolower($rec->task->risk_level ?? 'aman') }}">{{ $rec->task->risk_level }}</span>
+                        </div>
+                        <span style="font-size: 11px; color: #86efac;">
+                            Slot: {{ $rec->slot->formattedRange }} ({{ $rec->slot->formattedDuration }})
+                        </span>
+                        <span style="font-size: 11px; color: var(--text-secondary);">
+                            💡 {{ $rec->reason }}
+                        </span>
+                        <button class="recommendation-action-btn" onclick="editTask({{ $rec->task->id }}, {{ json_encode($rec->task) }})">
+                            Mulai Kerjakan ({{ $rec->recommendedDurationMinutes }} mnt) ➔
+                        </button>
+                    </div>
+                @else
+                    <span style="font-size: 12px; color: var(--text-tertiary);">Semua tugas hari ini terkendali dengan baik 🎉</span>
+                @endif
+            </div>
+
+            {{-- 3. Free Slots --}}
+            <div class="intel-section-box">
+                <div class="intel-box-label">
+                    <span>⏳ Celah Waktu Kosong Hari Ini</span>
+                </div>
+                @if($todayIntelligence['freeSlots']->count() > 0)
+                    <div class="free-slot-pills">
+                        @foreach($todayIntelligence['freeSlots']->take(4) as $fSlot)
+                            <span class="free-slot-pill {{ $fSlot->isAvailableNow ? 'slot-now' : '' }}" title="{{ $fSlot->formattedRange }}">
+                                @if($fSlot->isAvailableNow) 🟢 Sekarang: @endif
+                                {{ $fSlot->formattedRange }} ({{ $fSlot->formattedDuration }})
+                            </span>
+                        @endforeach
+                    </div>
+                @else
+                    <span style="font-size: 12px; color: var(--text-tertiary);">Jadwal hari ini padat penuh.</span>
+                @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="dashboard-main">
         {{-- Calendar --}}
         <div class="calendar-card glass-card">
