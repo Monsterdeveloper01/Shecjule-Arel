@@ -3194,3 +3194,73 @@ body {
     }
 }
 
+/* ========================================================
+   PRIORITY ENGINE (V2.1) STYLES
+   ======================================================== */
+.priority-engine-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.priority-engine-badge.level-kritis {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+    animation: pulse-kritis 2.5s infinite;
+}
+
+.priority-engine-badge.level-tinggi {
+    background: rgba(249, 115, 22, 0.2);
+    color: #fdba74;
+    border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+.priority-engine-badge.level-sedang {
+    background: rgba(234, 179, 8, 0.2);
+    color: #fde047;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.priority-engine-badge.level-rendah {
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+@keyframes pulse-kritis {
+    0%, 100% {
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+    }
+}
+
+.text-level-kritis { color: #f87171 !important; font-weight: 700; }
+.text-level-tinggi { color: #fb923c !important; font-weight: 700; }
+.text-level-sedang { color: #facc15 !important; font-weight: 700; }
+.text-level-rendah { color: #4ade80 !important; font-weight: 700; }
+
+.priority-progress-bar-fill.level-kritis {
+    background: linear-gradient(90deg, #f87171, #ef4444);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+.priority-progress-bar-fill.level-tinggi {
+    background: linear-gradient(90deg, #fb923c, #f97316);
+}
+.priority-progress-bar-fill.level-sedang {
+    background: linear-gradient(90deg, #facc15, #eab308);
+}
+.priority-progress-bar-fill.level-rendah {
+    background: linear-gradient(90deg, #4ade80, #22c55e);
+}
+

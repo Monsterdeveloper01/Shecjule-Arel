@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\DataObjects\PriorityResult;
 use App\Models\Concerns\HasAttachment;
+use App\Services\PriorityEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -29,6 +31,10 @@ class Task extends Model
         'deadline',
         'priority',
         'status',
+        'estimated_duration',
+        'progress',
+        'priority_score',
+        'priority_level',
     ];
 
     /**
@@ -40,6 +46,9 @@ class Task extends Model
     {
         return [
             'deadline' => 'datetime',
+            'estimated_duration' => 'integer',
+            'progress' => 'integer',
+            'priority_score' => 'integer',
         ];
     }
 
@@ -71,6 +80,22 @@ class Task extends Model
     }
 
     /**
+     * Scope: sort by computed priority score descending.
+     */
+    public function scopeByComputedPriority(Builder $query): Builder
+    {
+        return $query->orderByDesc('priority_score');
+    }
+
+    /**
+     * Scope: active tasks (not completed).
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', '!=', 'completed');
+    }
+
+    /**
      * Scope: tasks for a specific date.
      */
     public function scopeForDate(Builder $query, string $date): Builder
@@ -83,6 +108,25 @@ class Task extends Model
      */
     public function isOverdue(): bool
     {
-        return $this->deadline->isPast() && $this->status !== 'completed';
+        return (bool) ($this->deadline?->isPast() && $this->status !== 'completed');
+    }
+
+    /**
+     * Get remaining work duration in minutes.
+     */
+    public function getRemainingDurationAttribute(): int
+    {
+        $estimated = $this->estimated_duration ?? 120;
+        $progress = $this->progress ?? 0;
+
+        return (int) ($estimated * (100 - $progress) / 100);
+    }
+
+    /**
+     * Calculate and return the PriorityResult for this task.
+     */
+    public function getPriorityResultAttribute(): PriorityResult
+    {
+        return app(PriorityEngine::class)->calculate($this);
     }
 }

@@ -103,8 +103,13 @@
                     <div class="task-item-mini task-overdue" id="task-{{ $task->id }}">
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
-                            <span class="task-mini-title">{{ $task->title }}</span>
-                            <span class="task-mini-deadline">{{ $task->deadline->diffForHumans() }}</span>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="task-mini-title">{{ $task->title }}</span>
+                                <span class="priority-engine-badge level-{{ strtolower($task->priority_level ?? 'kritis') }}" title="{{ $task->priorityResult->reason }}">
+                                    {{ $task->priority_level ?? 'KRITIS' }} {{ $task->priority_score ?? 100 }}
+                                </span>
+                            </div>
+                            <span class="task-mini-deadline">{{ $task->deadline->diffForHumans() }} · <span style="color: #f87171;">{{ $task->priorityResult->reason }}</span></span>
                         </div>
                         <div class="mini-actions">
                             <button class="action-btn-sm" onclick="editTask({{ $task->id }}, {{ json_encode($task) }})" title="Edit Tugas" aria-label="Edit">
@@ -185,10 +190,20 @@
                     <div class="task-item-mini" id="task-{{ $task->id }}">
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
-                            <span class="task-mini-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</span>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="task-mini-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</span>
+                                @if($task->status !== 'completed' && $task->priority_level)
+                                    <span class="priority-engine-badge level-{{ strtolower($task->priority_level) }}" title="{{ $task->priorityResult->reason }}">
+                                        {{ $task->priority_level }} {{ $task->priority_score }}
+                                    </span>
+                                @endif
+                            </div>
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 @if($task->subject)
                                 <span class="task-mini-subject">{{ $task->subject }}</span>
+                                @endif
+                                @if($task->status !== 'completed' && $task->priorityResult->reason)
+                                <span style="font-size: 11px; color: var(--text-tertiary);">💡 {{ $task->priorityResult->reason }}</span>
                                 @endif
                                 @if($task->attachments && $task->attachments->count() > 0)
                                     @foreach($task->attachments as $att)
@@ -289,8 +304,15 @@
                     <div class="task-item-mini" id="task-{{ $task->id }}">
                         <span class="priority-dot priority-{{ $task->priority }}"></span>
                         <div class="task-mini-info">
-                            <span class="task-mini-title">{{ $task->title }}</span>
-                            <span class="task-mini-deadline">{{ $task->deadline->diffForHumans() }}</span>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="task-mini-title">{{ $task->title }}</span>
+                                @if($task->priority_level)
+                                <span class="priority-engine-badge level-{{ strtolower($task->priority_level) }}" title="{{ $task->priorityResult->reason }}">
+                                    {{ $task->priority_level }} {{ $task->priority_score }}
+                                </span>
+                                @endif
+                            </div>
+                            <span class="task-mini-deadline">{{ $task->deadline->diffForHumans() }} · <span style="color: var(--text-tertiary);">{{ $task->priorityResult->reason }}</span></span>
                         </div>
                         <div class="mini-actions">
                             <button class="action-btn-sm" onclick="editTask({{ $task->id }}, {{ json_encode($task) }})" title="Edit Tugas" aria-label="Edit">

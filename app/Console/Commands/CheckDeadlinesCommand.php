@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\PriorityEngine;
 use App\Services\WebPushService;
 use Illuminate\Console\Command;
 
@@ -24,8 +25,12 @@ class CheckDeadlinesCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WebPushService $pushService): int
+    public function handle(WebPushService $pushService, PriorityEngine $priorityEngine): int
     {
+        $this->info('Recalculating task priorities...');
+        $recalculated = $priorityEngine->recalculateAllAndPersist();
+        $this->info("Recalculated {$recalculated} task(s).");
+
         $this->info('Checking deadlines and sending notifications...');
 
         $count = $pushService->checkAndSendDeadlineAlerts();

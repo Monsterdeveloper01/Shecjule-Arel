@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Services\PriorityEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,6 +21,10 @@ class TaskController extends Controller
             $query->byPriority($request->priority);
         }
 
+        if ($request->filled('priority_level')) {
+            $query->where('priority_level', $request->priority_level);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -28,9 +33,14 @@ class TaskController extends Controller
             $query->where('subject', $request->subject);
         }
 
-        $tasks = $query->orderByRaw("FIELD(priority, 'urgent', 'high', 'medium', 'low')")
-            ->orderBy('deadline')
-            ->get();
+        if ($request->get('sort') === 'deadline') {
+            $query->orderBy('deadline');
+        } else {
+            // Default sort: computed priority score descending, then deadline
+            $query->byComputedPriority()->orderBy('deadline');
+        }
+
+        $tasks = $query->get();
 
         $subjects = Task::whereNotNull('subject')
             ->distinct()
@@ -42,7 +52,7 @@ class TaskController extends Controller
     /**
      * Store a new task with optional multiple file attachments.
      */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, PriorityEngine $priorityEngine): JsonResponse
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -51,6 +61,8 @@ class TaskController extends Controller
             'deadline' => 'required|date',
             'priority' => 'required|in:urgent,high,medium,low',
             'status' => 'nullable|in:pending,in_progress,completed',
+            'estimated_duration' => 'nullable|integer|min:1|max:9999',
+            'progress' => 'nullable|integer|min:0|max:100',
             'files' => 'nullable|array',
             'files.*' => 'file|max:51200',
         ]);
@@ -58,6 +70,7 @@ class TaskController extends Controller
         unset($validated['files']);
 
         $task = Task::create($validated);
+        $priorityEngine->recalculateAndPersist($task);
 
         if ($request->hasFile('files')) {
             $task->saveAttachments($request->file('files'), 'uploads/tasks');
@@ -71,7 +84,7 @@ class TaskController extends Controller
     /**
      * Update a task, attach new files, and delete selected existing files.
      */
-    public function update(Request $request, Task $task): JsonResponse
+    public function update(Request $request, Task $task, PriorityEngine $priorityEngine): JsonResponse
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -80,6 +93,8 @@ class TaskController extends Controller
             'deadline' => 'required|date',
             'priority' => 'required|in:urgent,high,medium,low',
             'status' => 'nullable|in:pending,in_progress,completed',
+            'estimated_duration' => 'nullable|integer|min:1|max:9999',
+            'progress' => 'nullable|integer|min:0|max:100',
             'files' => 'nullable|array',
             'files.*' => 'file|max:51200',
             'deleted_attachment_ids' => 'nullable|array',
@@ -97,6 +112,7 @@ class TaskController extends Controller
         unset($validated['files'], $validated['deleted_attachment_ids']);
 
         $task->update($validated);
+        $priorityEngine->recalculateAndPersist($task);
         $task->load('attachments');
 
         return response()->json(['success' => true, 'task' => $task]);
@@ -115,7 +131,7 @@ class TaskController extends Controller
     /**
      * Toggle task status (pending → in_progress → completed → pending).
      */
-    public function toggleStatus(Task $task): JsonResponse
+    public function toggleStatus(Task $task, PriorityEngine $priorityEngine): JsonResponse
     {
         $statusFlow = [
             'pending' => 'in_progress',
@@ -124,6 +140,7 @@ class TaskController extends Controller
         ];
 
         $task->update(['status' => $statusFlow[$task->status] ?? 'pending']);
+        $priorityEngine->recalculateAndPersist($task);
 
         return response()->json(['success' => true, 'task' => $task]);
     }

@@ -8,17 +8,28 @@
     <div class="filter-bar">
         <div class="filter-group">
             <select class="filter-select" id="filterPriority" onchange="applyFilters()">
-                <option value="">Semua Prioritas</option>
+                <option value="">Semua Prioritas User</option>
                 <option value="urgent" {{ request('priority') === 'urgent' ? 'selected' : '' }}>🔴 Urgent</option>
                 <option value="high" {{ request('priority') === 'high' ? 'selected' : '' }}>🟠 High</option>
                 <option value="medium" {{ request('priority') === 'medium' ? 'selected' : '' }}>🟡 Medium</option>
                 <option value="low" {{ request('priority') === 'low' ? 'selected' : '' }}>🟢 Low</option>
+            </select>
+            <select class="filter-select" id="filterPriorityLevel" onchange="applyFilters()">
+                <option value="">Semua Level Engine</option>
+                <option value="KRITIS" {{ request('priority_level') === 'KRITIS' ? 'selected' : '' }}>🔴 Kritis</option>
+                <option value="TINGGI" {{ request('priority_level') === 'TINGGI' ? 'selected' : '' }}>🟠 Tinggi</option>
+                <option value="SEDANG" {{ request('priority_level') === 'SEDANG' ? 'selected' : '' }}>🟡 Sedang</option>
+                <option value="RENDAH" {{ request('priority_level') === 'RENDAH' ? 'selected' : '' }}>🟢 Rendah</option>
             </select>
             <select class="filter-select" id="filterStatus" onchange="applyFilters()">
                 <option value="">Semua Status</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                 <option value="in_progress" {{ request('status') === 'in_progress' ? 'selected' : '' }}>In Progress</option>
                 <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+            </select>
+            <select class="filter-select" id="filterSort" onchange="applyFilters()">
+                <option value="priority_score" {{ request('sort') !== 'deadline' ? 'selected' : '' }}>⚡ Urut: Skor Prioritas</option>
+                <option value="deadline" {{ request('sort') === 'deadline' ? 'selected' : '' }}>📅 Urut: Deadline Terdekat</option>
             </select>
             @if($subjects->count() > 0)
             <select class="filter-select" id="filterSubject" onchange="applyFilters()">
@@ -55,12 +66,46 @@
         </div>
         <div class="task-card-body">
             <div class="task-card-top">
-                <h3 class="task-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</h3>
-                <span class="priority-badge priority-{{ $task->priority }}">{{ ucfirst($task->priority) }}</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 class="task-title {{ $task->status === 'completed' ? 'completed' : '' }}">{{ $task->title }}</h3>
+                    @if($task->status !== 'completed' && $task->priority_level)
+                        <span class="priority-engine-badge level-{{ strtolower($task->priority_level) }}" title="Skor {{ $task->priority_score }}/100: {{ $task->priorityResult->reason }}">
+                            ⚡ {{ $task->priority_level }} ({{ $task->priority_score }})
+                        </span>
+                    @endif
+                </div>
+                <span class="priority-badge priority-{{ $task->priority }}" title="User Importance">{{ ucfirst($task->priority) }}</span>
             </div>
             @if($task->description)
             <p class="task-desc">{{ Str::limit($task->description, 100) }}</p>
             @endif
+
+            @if($task->status !== 'completed')
+            <div style="margin: 8px 0; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <span style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                        <span>Prioritas:</span>
+                        <strong class="text-level-{{ strtolower($task->priority_level ?? 'rendah') }}">{{ $task->priority_level ?? 'RENDAH' }} ({{ $task->priority_score ?? 0 }}/100)</strong>
+                    </span>
+                    <span style="font-size: 11px; color: var(--text-tertiary);">
+                        ⏱️ Est: {{ $task->estimated_duration ? round($task->estimated_duration / 60, 1) . ' jam' : '2 jam' }}
+                        @if($task->remaining_duration > 0)
+                            · Sisa ~{{ round($task->remaining_duration / 60, 1) }} jam
+                        @endif
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                        <div class="priority-progress-bar-fill level-{{ strtolower($task->priority_level ?? 'rendah') }}" style="width: {{ $task->priority_score ?? 0 }}%; height: 100%; border-radius: 3px;"></div>
+                    </div>
+                    <span style="font-size: 11px; color: var(--text-secondary); min-width: 80px; text-align: right;">Progress: {{ $task->progress ?? 0 }}%</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary);">
+                    💡 {{ $task->priorityResult->reason }}
+                </div>
+            </div>
+            @endif
+
             <div class="task-meta">
                 @if($task->subject)
                 <span class="task-subject-badge">{{ $task->subject }}</span>
@@ -136,13 +181,17 @@
 <script>
 function applyFilters() {
     const priority = document.getElementById('filterPriority').value;
+    const priorityLevel = document.getElementById('filterPriorityLevel').value;
     const status = document.getElementById('filterStatus').value;
+    const sort = document.getElementById('filterSort').value;
     const subjectEl = document.getElementById('filterSubject');
     const subject = subjectEl ? subjectEl.value : '';
 
     const params = new URLSearchParams();
     if (priority) params.set('priority', priority);
+    if (priorityLevel) params.set('priority_level', priorityLevel);
     if (status) params.set('status', status);
+    if (sort) params.set('sort', sort);
     if (subject) params.set('subject', subject);
 
     window.location.href = '{{ route("tasks.index") }}?' + params.toString();

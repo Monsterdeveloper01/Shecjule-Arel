@@ -366,6 +366,32 @@ window.openTaskModal = function(task = null) {
                     </select>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="taskDuration">Estimasi Durasi (Opsional)</label>
+                    <select class="form-select" id="taskDuration" name="estimated_duration">
+                        <option value="30" ${task?.estimated_duration == 30 ? 'selected' : ''}>⏱️ 30 Menit</option>
+                        <option value="60" ${task?.estimated_duration == 60 ? 'selected' : ''}>⏱️ 1 Jam</option>
+                        <option value="120" ${(!task || !task.estimated_duration || task.estimated_duration == 120) ? 'selected' : ''}>⏱️ 2 Jam (Default)</option>
+                        <option value="180" ${task?.estimated_duration == 180 ? 'selected' : ''}>⏱️ 3 Jam</option>
+                        <option value="240" ${task?.estimated_duration == 240 ? 'selected' : ''}>⏱️ 4 Jam</option>
+                        <option value="360" ${task?.estimated_duration == 360 ? 'selected' : ''}>⏱️ 6 Jam</option>
+                        <option value="480" ${task?.estimated_duration == 480 ? 'selected' : ''}>⏱️ 8 Jam</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskProgress">Progress Saat Ini: <strong id="progressValue" style="color: #818cf8;">${task?.progress ?? 0}%</strong></label>
+                    <input type="range" class="form-input" id="taskProgress" name="progress" min="0" max="100" step="5" value="${task?.progress ?? 0}" oninput="document.getElementById('progressValue').innerText = this.value + '%'" style="cursor: pointer; padding: 4px; accent-color: #6366f1; margin-top: 6px;">
+                </div>
+            </div>
+            ${isEdit && task.priority_level ? `
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; color: var(--text-secondary);">⚡ Skor Prioritas Terhitung:</span>
+                <span class="priority-engine-badge level-${(task.priority_level || 'rendah').toLowerCase()}">
+                    ${task.priority_level} (${task.priority_score || 0}/100)
+                </span>
+            </div>
+            ` : ''}
             ${isEdit ? `
             <div class="form-group">
                 <label class="form-label" for="taskStatus">Status</label>

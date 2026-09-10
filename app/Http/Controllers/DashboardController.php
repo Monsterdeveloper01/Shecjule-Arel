@@ -6,6 +6,7 @@ use App\Models\CourseSchedule;
 use App\Models\Event;
 use App\Models\Note;
 use App\Models\Task;
+use App\Services\PriorityEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,17 +16,20 @@ class DashboardController extends Controller
     /**
      * Show the main dashboard with calendar and today overview.
      */
-    public function index(Request $request): View
+    public function index(Request $request, PriorityEngine $priorityEngine): View
     {
+        // Batch recalculate all active task priorities
+        $priorityEngine->recalculateAllAndPersist();
+
         $today = now()->toDateString();
 
-        $todayTasks = Task::forDate($today)->orderBy('priority')->get();
+        $todayTasks = Task::forDate($today)->byComputedPriority()->get();
         $todayEvents = Event::forDate($today)->orderBy('start_date')->get();
         $todayNotes = Note::forDate($today)->orderBy('is_pinned', 'desc')->get();
         $todaySchedules = CourseSchedule::today()->with('attachments')->orderBy('start_time')->get();
 
-        $overdueTasks = Task::overdue()->get();
-        $upcomingTasks = Task::upcoming()->limit(5)->get();
+        $overdueTasks = Task::overdue()->byComputedPriority()->get();
+        $upcomingTasks = Task::upcoming()->byComputedPriority()->limit(5)->get();
 
         $stats = [
             'pending' => Task::where('status', 'pending')->count(),
