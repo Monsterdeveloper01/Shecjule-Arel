@@ -2804,6 +2804,106 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
+// RUPIAH UTILITIES & LIVE FORMATTER
+// ==========================================
+
+window.parseRupiah = function(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    const str = val.toString().replace(/[^0-9]/g, '');
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+};
+
+window.terbilangRupiah = function(n) {
+    n = Math.floor(window.parseRupiah(n));
+    if (isNaN(n) || n <= 0) return '';
+    const satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+    function bilang(x) {
+        x = Math.floor(x);
+        if (x < 12) return satuan[x];
+        if (x < 20) return bilang(x - 10) + ' Belas';
+        if (x < 100) return bilang(Math.floor(x / 10)) + ' Puluh' + (x % 10 !== 0 ? ' ' + bilang(x % 10) : '');
+        if (x < 200) return 'Seratus' + (x - 100 !== 0 ? ' ' + bilang(x - 100) : '');
+        if (x < 1000) return bilang(Math.floor(x / 100)) + ' Ratus' + (x % 100 !== 0 ? ' ' + bilang(x % 100) : '');
+        if (x < 2000) return 'Seribu' + (x - 1000 !== 0 ? ' ' + bilang(x - 1000) : '');
+        if (x < 1000000) return bilang(Math.floor(x / 1000)) + ' Ribu' + (x % 1000 !== 0 ? ' ' + bilang(x % 1000) : '');
+        if (x < 1000000000) return bilang(Math.floor(x / 1000000)) + ' Juta' + (x % 1000000 !== 0 ? ' ' + bilang(x % 1000000) : '');
+        if (x < 1000000000000) return bilang(Math.floor(x / 1000000000)) + ' Miliar' + (x % 1000000000 !== 0 ? ' ' + bilang(x % 1000000000) : '');
+        return bilang(Math.floor(x / 1000000000000)) + ' Triliun' + (x % 1000000000000 !== 0 ? ' ' + bilang(x % 1000000000000) : '');
+    }
+    return bilang(n) + ' Rupiah';
+};
+
+window.formatRupiahNumber = function(value) {
+    if (value === null || value === undefined || value === '') return '';
+    const num = window.parseRupiah(value);
+    if (num === 0) return '';
+    return new Intl.NumberFormat('id-ID').format(num);
+};
+
+window.attachRupiahFormatter = function(input) {
+    if (!input || input.dataset.rupiahBound) return;
+    input.dataset.rupiahBound = 'true';
+
+    let hintEl = input.parentElement.querySelector('.rupiah-hint');
+    if (!hintEl) {
+        hintEl = document.createElement('div');
+        hintEl.className = 'rupiah-hint';
+        hintEl.style.display = 'none';
+        input.parentElement.appendChild(hintEl);
+    }
+
+    function syncValueAndHint() {
+        const raw = input.value.replace(/[^0-9]/g, '');
+        if (!raw) {
+            input.value = '';
+            hintEl.style.display = 'none';
+            return;
+        }
+        const num = parseInt(raw, 10);
+        const formatted = new Intl.NumberFormat('id-ID').format(num);
+        input.value = formatted;
+        const terbilang = window.terbilangRupiah(num);
+        hintEl.textContent = `✨ Rp ${formatted} · ${terbilang}`;
+        hintEl.style.display = 'inline-flex';
+    }
+
+    input.addEventListener('input', () => {
+        syncValueAndHint();
+        if (input.id.startsWith('budget') && input.id.endsWith('Input')) {
+            window.updateBudgetLiveTotal?.();
+        }
+    });
+
+    if (input.value && input.value !== '0') {
+        syncValueAndHint();
+    }
+};
+
+window.initRupiahInputs = function() {
+    document.querySelectorAll('.rupiah-input').forEach(input => {
+        window.attachRupiahFormatter(input);
+    });
+};
+
+window.updateBudgetLiveTotal = function() {
+    const f = window.parseRupiah(document.getElementById('budgetFoodInput')?.value);
+    const t = window.parseRupiah(document.getElementById('budgetTransportInput')?.value);
+    const s = window.parseRupiah(document.getElementById('budgetSnackInput')?.value);
+    const o = window.parseRupiah(document.getElementById('budgetOtherInput')?.value);
+    const total = f + t + s + o;
+    const preview = document.getElementById('budgetTotalPreview');
+    if (preview) {
+        preview.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(total)} / hari`;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.initRupiahInputs();
+});
+
+// ==========================================
 // PERSONAL FINANCE — Phase 1: Ledger Module
 // ==========================================
 
@@ -2854,7 +2954,7 @@ window.submitTransaction = async function(e) {
     const destination_account_id = document.getElementById('txDestAccountSelect')?.value || null;
     const type = document.getElementById('txTypeSelect')?.value;
     const category_id = document.getElementById('txCategorySelect')?.value || null;
-    const amount = parseFloat(document.getElementById('txAmountInput')?.value || 0);
+    const amount = window.parseRupiah(document.getElementById('txAmountInput')?.value);
     const transaction_date = document.getElementById('txDateInput')?.value;
     const description = document.getElementById('txDescInput')?.value.trim();
     const notes = document.getElementById('txNotesInput')?.value.trim() || null;
@@ -2941,7 +3041,7 @@ window.submitAccount = async function(e) {
 
     const name = document.getElementById('accNameInput')?.value.trim();
     const type = document.getElementById('accTypeSelect')?.value;
-    const opening_balance = parseFloat(document.getElementById('accOpeningBalanceInput')?.value || 0);
+    const opening_balance = window.parseRupiah(document.getElementById('accOpeningBalanceInput')?.value);
     const notes = document.getElementById('accNotesInput')?.value.trim() || null;
 
     if (!name) {
@@ -3013,13 +3113,13 @@ window.submitIncomeSchedule = async function(e) {
     e.preventDefault();
 
     const weekday_amounts = {
-        '1': parseFloat(document.getElementById('schDay1')?.value || 0),
-        '2': parseFloat(document.getElementById('schDay2')?.value || 0),
-        '3': parseFloat(document.getElementById('schDay3')?.value || 0),
-        '4': parseFloat(document.getElementById('schDay4')?.value || 0),
-        '5': parseFloat(document.getElementById('schDay5')?.value || 0),
-        '6': parseFloat(document.getElementById('schDay6')?.value || 0),
-        '7': parseFloat(document.getElementById('schDay7')?.value || 0),
+        '1': window.parseRupiah(document.getElementById('schDay1')?.value),
+        '2': window.parseRupiah(document.getElementById('schDay2')?.value),
+        '3': window.parseRupiah(document.getElementById('schDay3')?.value),
+        '4': window.parseRupiah(document.getElementById('schDay4')?.value),
+        '5': window.parseRupiah(document.getElementById('schDay5')?.value),
+        '6': window.parseRupiah(document.getElementById('schDay6')?.value),
+        '7': window.parseRupiah(document.getElementById('schDay7')?.value),
     };
 
     try {
@@ -3065,7 +3165,7 @@ window.submitOverride = async function(e) {
     const is_extra = document.getElementById('ovIsExtraSelect')?.value === '1';
     const override_date = document.getElementById('ovDateInput')?.value;
     const title = document.getElementById('ovTitleInput')?.value.trim();
-    const amount = parseFloat(document.getElementById('ovAmountInput')?.value || 0);
+    const amount = window.parseRupiah(document.getElementById('ovAmountInput')?.value);
     const notes = document.getElementById('ovNotesInput')?.value.trim() || null;
 
     if (!override_date || !title || isNaN(amount) || amount <= 0) {
@@ -3119,10 +3219,10 @@ window.deleteIncomeOverride = async function(id) {
 window.submitEssentialBudget = async function(e) {
     e.preventDefault();
 
-    const food = parseFloat(document.getElementById('budgetFoodInput')?.value || 0);
-    const transport = parseFloat(document.getElementById('budgetTransportInput')?.value || 0);
-    const snack = parseFloat(document.getElementById('budgetSnackInput')?.value || 0);
-    const other = parseFloat(document.getElementById('budgetOtherInput')?.value || 0);
+    const food = window.parseRupiah(document.getElementById('budgetFoodInput')?.value);
+    const transport = window.parseRupiah(document.getElementById('budgetTransportInput')?.value);
+    const snack = window.parseRupiah(document.getElementById('budgetSnackInput')?.value);
+    const other = window.parseRupiah(document.getElementById('budgetOtherInput')?.value);
     const notes = document.getElementById('budgetNotesInput')?.value.trim() || null;
 
     try {
@@ -3179,8 +3279,8 @@ window.submitInstallment = async function(e) {
     const name = document.getElementById('instNameInput')?.value.trim();
     const category = document.getElementById('instCategorySelect')?.value || 'elektronik';
     const due_day = parseInt(document.getElementById('instDueDayInput')?.value || '24', 10);
-    const monthly_amount = parseFloat(document.getElementById('instMonthlyAmountInput')?.value || 0);
-    const total_amount = parseFloat(document.getElementById('instTotalAmountInput')?.value || 0);
+    const monthly_amount = window.parseRupiah(document.getElementById('instMonthlyAmountInput')?.value);
+    const total_amount = window.parseRupiah(document.getElementById('instTotalAmountInput')?.value);
     const start_date = document.getElementById('instStartDateInput')?.value;
     const end_date = document.getElementById('instEndDateInput')?.value || null;
     const notes = document.getElementById('instNotesInput')?.value.trim() || null;
@@ -3244,7 +3344,18 @@ window.openReserveModal = function(id, name, remainingObligation) {
 
     if (idInput) idInput.value = id;
     if (title) title.textContent = `Cicilan: ${name} (Sisa Perlu Dicadangkan: Rp ${Number(remainingObligation).toLocaleString('id-ID')})`;
-    if (amountInput) amountInput.value = remainingObligation > 0 ? remainingObligation : '';
+    if (amountInput) {
+        amountInput.value = remainingObligation > 0 ? new Intl.NumberFormat('id-ID').format(remainingObligation) : '';
+        const hintEl = amountInput.parentElement.querySelector('.rupiah-hint');
+        if (hintEl) {
+            if (remainingObligation > 0) {
+                hintEl.textContent = `✨ Rp ${new Intl.NumberFormat('id-ID').format(remainingObligation)} · ${window.terbilangRupiah(remainingObligation)}`;
+                hintEl.style.display = 'inline-flex';
+            } else {
+                hintEl.style.display = 'none';
+            }
+        }
+    }
 
     if (modal) {
         modal.classList.add('open', 'active');
@@ -3265,7 +3376,7 @@ window.submitReserve = async function(e) {
 
     const id = document.getElementById('reserveInstallmentId')?.value;
     const account_id = document.getElementById('reserveAccountSelect')?.value;
-    const amount = parseFloat(document.getElementById('reserveAmountInput')?.value || 0);
+    const amount = window.parseRupiah(document.getElementById('reserveAmountInput')?.value);
     const notes = document.getElementById('reserveNotesInput')?.value.trim() || null;
 
     if (!id || !account_id || isNaN(amount) || amount <= 0) {
@@ -3303,7 +3414,18 @@ window.openPayInstallmentModal = function(id, name, monthlyAmount) {
 
     if (idInput) idInput.value = id;
     if (title) title.textContent = `Tagihan: ${name} (Nominal: Rp ${Number(monthlyAmount).toLocaleString('id-ID')})`;
-    if (amountInput) amountInput.value = monthlyAmount;
+    if (amountInput) {
+        amountInput.value = monthlyAmount > 0 ? new Intl.NumberFormat('id-ID').format(monthlyAmount) : '';
+        const hintEl = amountInput.parentElement.querySelector('.rupiah-hint');
+        if (hintEl) {
+            if (monthlyAmount > 0) {
+                hintEl.textContent = `✨ Rp ${new Intl.NumberFormat('id-ID').format(monthlyAmount)} · ${window.terbilangRupiah(monthlyAmount)}`;
+                hintEl.style.display = 'inline-flex';
+            } else {
+                hintEl.style.display = 'none';
+            }
+        }
+    }
 
     if (modal) {
         modal.classList.add('open', 'active');
@@ -3324,7 +3446,7 @@ window.submitPayInstallment = async function(e) {
 
     const id = document.getElementById('payInstallmentId')?.value;
     const account_id = document.getElementById('payAccountSelect')?.value;
-    const amount = parseFloat(document.getElementById('payAmountInput')?.value || 0);
+    const amount = window.parseRupiah(document.getElementById('payAmountInput')?.value);
     const transaction_date = document.getElementById('payDateInput')?.value;
     const notes = document.getElementById('payNotesInput')?.value.trim() || null;
 
@@ -3396,7 +3518,7 @@ window.submitSavingsGoal = async function(e) {
 
     const name = document.getElementById('goalNameInput')?.value.trim();
     const type = document.getElementById('goalTypeSelect')?.value || 'deadline';
-    const target_amount = parseFloat(document.getElementById('goalTargetAmountInput')?.value || 0);
+    const target_amount = window.parseRupiah(document.getElementById('goalTargetAmountInput')?.value);
     const target_date = type === 'deadline' ? document.getElementById('goalTargetDateInput')?.value : null;
     const icon = document.getElementById('goalIconSelect')?.value || '🎯';
     const color = document.getElementById('goalColorSelect')?.value || '#10b981';
@@ -3486,7 +3608,7 @@ window.submitSaveFunds = async function(e) {
 
     const id = document.getElementById('saveFundsGoalId')?.value;
     const account_id = document.getElementById('saveFundsAccountSelect')?.value;
-    const amount = parseFloat(document.getElementById('saveFundsAmountInput')?.value || 0);
+    const amount = window.parseRupiah(document.getElementById('saveFundsAmountInput')?.value);
     const allocation_date = document.getElementById('saveFundsDateInput')?.value;
     const notes = document.getElementById('saveFundsNotesInput')?.value.trim() || null;
 
@@ -3527,8 +3649,17 @@ window.openWithdrawSavingsModal = function(id, name, currentAmount) {
     if (idInput) idInput.value = id;
     if (title) title.textContent = `Target: ${name} (Terkumpul Saat Ini: Rp ${Number(currentAmount).toLocaleString('id-ID')})`;
     if (amountInput) {
-        amountInput.value = currentAmount;
-        amountInput.max = currentAmount;
+        amountInput.value = currentAmount > 0 ? new Intl.NumberFormat('id-ID').format(currentAmount) : '';
+        amountInput.dataset.maxAmount = currentAmount;
+        const hintEl = amountInput.parentElement.querySelector('.rupiah-hint');
+        if (hintEl) {
+            if (currentAmount > 0) {
+                hintEl.textContent = `✨ Rp ${new Intl.NumberFormat('id-ID').format(currentAmount)} · ${window.terbilangRupiah(currentAmount)}`;
+                hintEl.style.display = 'inline-flex';
+            } else {
+                hintEl.style.display = 'none';
+            }
+        }
     }
 
     if (modal) {
@@ -3550,7 +3681,7 @@ window.submitWithdrawSavings = async function(e) {
 
     const id = document.getElementById('withdrawGoalId')?.value;
     const account_id = document.getElementById('withdrawAccountSelect')?.value;
-    const amount = parseFloat(document.getElementById('withdrawAmountInput')?.value || 0);
+    const amount = window.parseRupiah(document.getElementById('withdrawAmountInput')?.value);
     const is_expense = document.getElementById('withdrawIsExpenseSelect')?.value === '1';
     const notes = document.getElementById('withdrawNotesInput')?.value.trim() || null;
 

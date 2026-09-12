@@ -84,7 +84,7 @@
                     <strong style="color: #86efac; font-size: 13px;">Rp {{ number_format($todayIncome['total_expected'], 0, ',', '.') }}</strong>
                     <div style="font-size: 11px; color: var(--text-tertiary); display: inline-block; margin-left: 6px;">
                         @if($todayIncome['has_actual'])
-                            · <span style="color: #4ade80;">Sudah masuk: Rp {{ number_format($todayIncome['actual_amount'], 0, ',', '.') }} (Variance: {{ ($todayIncome['variance'] >= 0 ? '+' : '') . number_format($todayIncome['variance'], 0, ',', '.') }})</span>
+                            · <span style="color: #4ade80;">Sudah masuk: Rp {{ number_format($todayIncome['actual_amount'], 0, ',', '.') }} (Selisih: {{ $todayIncome['variance'] >= 0 ? '+' : '-' }}Rp {{ number_format(abs($todayIncome['variance']), 0, ',', '.') }})</span>
                         @else
                             · <span style="color: var(--text-tertiary);">Belum ada mutasi masuk hari ini</span>
                         @endif
@@ -243,11 +243,11 @@
                                         </td>
                                         <td class="tx-amount-cell text-right {{ $tx->type === 'income' ? 'amount-income' : ($tx->type === 'transfer' ? 'amount-transfer' : 'amount-expense') }}">
                                             @if($tx->type === 'income')
-                                                +Rp {{ number_format($tx->amount, 0, ',', '.') }}
+                                                + Rp {{ number_format($tx->amount, 0, ',', '.') }}
                                             @elseif($tx->type === 'transfer')
-                                                Rp {{ number_format($tx->amount, 0, ',', '.') }}
+                                                ⇄ Rp {{ number_format($tx->amount, 0, ',', '.') }}
                                             @else
-                                                -Rp {{ number_format($tx->amount, 0, ',', '.') }}
+                                                - Rp {{ number_format($tx->amount, 0, ',', '.') }}
                                             @endif
                                         </td>
                                         <td style="text-align: center;">
@@ -339,7 +339,7 @@
                                 </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <strong style="font-size: 13px; color: #86efac;">+Rp {{ number_format($ov->amount, 0, ',', '.') }}</strong>
+                                <strong style="font-size: 13px; color: #86efac;">+ Rp {{ number_format($ov->amount, 0, ',', '.') }}</strong>
                                 <button type="button" class="btn-del-tx" onclick="deleteIncomeOverride({{ $ov->id }})" title="Hapus Override">&times;</button>
                             </div>
                         </div>
@@ -366,19 +366,19 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
                         <div class="form-group">
                             <label>🍔 Makanan & Minuman Pokok (Rp/hari) <span class="required">*</span></label>
-                            <input type="number" class="form-input" id="budgetFoodInput" value="{{ (int)$essentialBudget->food }}" min="0" step="1000" required>
+                            <input type="text" inputmode="numeric" class="form-input rupiah-input" id="budgetFoodInput" value="{{ number_format($essentialBudget->food, 0, ',', '.') }}" placeholder="0" required>
                         </div>
                         <div class="form-group">
                             <label>🛵 Transportasi & Bensin (Rp/hari) <span class="required">*</span></label>
-                            <input type="number" class="form-input" id="budgetTransportInput" value="{{ (int)$essentialBudget->transport }}" min="0" step="1000" required>
+                            <input type="text" inputmode="numeric" class="form-input rupiah-input" id="budgetTransportInput" value="{{ number_format($essentialBudget->transport, 0, ',', '.') }}" placeholder="0" required>
                         </div>
                         <div class="form-group">
                             <label>☕ Camilan / Kopi (Rp/hari)</label>
-                            <input type="number" class="form-input" id="budgetSnackInput" value="{{ (int)$essentialBudget->snack }}" min="0" step="1000">
+                            <input type="text" inputmode="numeric" class="form-input rupiah-input" id="budgetSnackInput" value="{{ number_format($essentialBudget->snack, 0, ',', '.') }}" placeholder="0">
                         </div>
                         <div class="form-group">
                             <label>📦 Kebutuhan Harian Lainnya (Rp/hari)</label>
-                            <input type="number" class="form-input" id="budgetOtherInput" value="{{ (int)$essentialBudget->other }}" min="0" step="1000">
+                            <input type="text" inputmode="numeric" class="form-input rupiah-input" id="budgetOtherInput" value="{{ number_format($essentialBudget->other, 0, ',', '.') }}" placeholder="0">
                         </div>
                     </div>
 
@@ -1097,7 +1097,7 @@
 
                 <div class="form-group">
                     <label>Nominal (Rp) <span class="required">*</span></label>
-                    <input type="number" class="form-input" id="txAmountInput" min="1" step="1" placeholder="Contoh: 50000" required>
+                    <input type="text" inputmode="numeric" class="form-input rupiah-input" id="txAmountInput" placeholder="Contoh: 50.000" required>
                 </div>
 
                 <div class="form-row">
@@ -1156,7 +1156,7 @@
                     </div>
                     <div class="form-group">
                         <label>Saldo Awal Saat Ini (Rp) <span class="required">*</span></label>
-                        <input type="number" class="form-input" id="accOpeningBalanceInput" min="0" value="0" step="1" required>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="accOpeningBalanceInput" value="0" placeholder="0" required>
                     </div>
                 </div>
 
@@ -1192,32 +1192,32 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="form-group">
                         <label>Senin (Rp)</label>
-                        <input type="number" class="form-input" id="schDay1" value="{{ (int)($wkAmounts['1'] ?? 50000) }}" min="0" step="1000">
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay1" value="{{ number_format($wkAmounts['1'] ?? 50000, 0, ',', '.') }}">
                     </div>
                     <div class="form-group">
                         <label>Selasa (Rp)</label>
-                        <input type="number" class="form-input" id="schDay2" value="{{ (int)($wkAmounts['2'] ?? 30000) }}" min="0" step="1000">
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay2" value="{{ number_format($wkAmounts['2'] ?? 30000, 0, ',', '.') }}">
                     </div>
                     <div class="form-group">
                         <label>Rabu (Rp)</label>
-                        <input type="number" class="form-input" id="schDay3" value="{{ (int)($wkAmounts['3'] ?? 50000) }}" min="0" step="1000">
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay3" value="{{ number_format($wkAmounts['3'] ?? 50000, 0, ',', '.') }}">
                     </div>
                     <div class="form-group">
                         <label>Kamis (Rp)</label>
-                        <input type="number" class="form-input" id="schDay4" value="{{ (int)($wkAmounts['4'] ?? 20000) }}" min="0" step="1000">
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay4" value="{{ number_format($wkAmounts['4'] ?? 20000, 0, ',', '.') }}">
                     </div>
                     <div class="form-group">
                         <label>Jumat (Rp)</label>
-                        <input type="number" class="form-input" id="schDay5" value="{{ (int)($wkAmounts['5'] ?? 50000) }}" min="0" step="1000">
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay5" value="{{ number_format($wkAmounts['5'] ?? 50000, 0, ',', '.') }}">
                     </div>
                     <div class="form-group">
                         <label>Sabtu (Rp)</label>
-                        <input type="number" class="form-input" id="schDay6" value="{{ (int)($wkAmounts['6'] ?? 30000) }}" min="0" step="1000">
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay6" value="{{ number_format($wkAmounts['6'] ?? 30000, 0, ',', '.') }}">
                     </div>
                 </div>
                 <div class="form-group" style="margin-top: 10px;">
                     <label>Minggu (Rp)</label>
-                    <input type="number" class="form-input" id="schDay7" value="{{ (int)($wkAmounts['7'] ?? 0) }}" min="0" step="1000">
+                    <input type="text" inputmode="numeric" class="form-input rupiah-input" id="schDay7" value="{{ number_format($wkAmounts['7'] ?? 0, 0, ',', '.') }}">
                 </div>
 
                 <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
@@ -1259,7 +1259,7 @@
 
                 <div class="form-group">
                     <label>Nominal (Rp) <span class="required">*</span></label>
-                    <input type="number" class="form-input" id="ovAmountInput" min="1" step="1000" placeholder="Contoh: 500000" required>
+                    <input type="text" inputmode="numeric" class="form-input rupiah-input" id="ovAmountInput" placeholder="Contoh: 500.000" required>
                 </div>
 
                 <div class="form-group">
@@ -1310,11 +1310,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Tagihan Bulanan (Rp) <span class="required">*</span></label>
-                        <input type="number" class="form-input" id="instMonthlyAmountInput" min="1" step="1000" placeholder="Contoh: 500000" required>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="instMonthlyAmountInput" placeholder="Contoh: 500.000" required>
                     </div>
                     <div class="form-group">
                         <label>Total Plafon / Keseluruhan Nilai Pinjaman (Rp) <span class="required">*</span></label>
-                        <input type="number" class="form-input" id="instTotalAmountInput" min="1" step="1000" placeholder="Contoh: 6000000" required>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="instTotalAmountInput" placeholder="Contoh: 6.000.000" required>
                     </div>
                 </div>
 
@@ -1374,7 +1374,7 @@
 
                 <div class="form-group">
                     <label>Nominal yang Ingin Dicadangkan (Rp) <span class="required">*</span></label>
-                    <input type="number" class="form-input" id="reserveAmountInput" min="1" step="1000" required>
+                    <input type="text" inputmode="numeric" class="form-input rupiah-input" id="reserveAmountInput" placeholder="0" required>
                 </div>
 
                 <div class="form-group">
@@ -1428,7 +1428,7 @@
 
                 <div class="form-group">
                     <label>Nominal Pembayaran (Rp) <span class="required">*</span></label>
-                    <input type="number" class="form-input" id="payAmountInput" min="1" step="1000" required>
+                    <input type="text" inputmode="numeric" class="form-input rupiah-input" id="payAmountInput" placeholder="0" required>
                 </div>
 
                 <div class="form-group">
@@ -1475,7 +1475,7 @@
 
                 <div class="form-group">
                     <label>Target Nominal yang Ingin Dicapai (Rp) <span class="required">*</span></label>
-                    <input type="number" class="form-input" id="goalTargetAmountInput" min="1" step="1000" placeholder="Contoh: 10000000" required>
+                    <input type="text" inputmode="numeric" class="form-input rupiah-input" id="goalTargetAmountInput" placeholder="Contoh: 10.000.000" required>
                 </div>
 
                 <div class="form-row">
@@ -1553,7 +1553,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Nominal yang Ingin Ditabung (Rp) <span class="required">*</span></label>
-                        <input type="number" class="form-input" id="saveFundsAmountInput" min="1" step="1000" required>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="saveFundsAmountInput" placeholder="0" required>
                     </div>
                     <div class="form-group">
                         <label>Tanggal <span class="required">*</span></label>
@@ -1606,7 +1606,7 @@
                     </div>
                     <div class="form-group">
                         <label>Nominal yang Ditarik (Rp) <span class="required">*</span></label>
-                        <input type="number" class="form-input" id="withdrawAmountInput" min="1" step="1000" required>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="withdrawAmountInput" placeholder="0" required>
                     </div>
                 </div>
 
