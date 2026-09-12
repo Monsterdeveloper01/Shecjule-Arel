@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\Note;
 use App\Models\Task;
 use App\Services\DeadlineRiskEngine;
+use App\Services\FinanceIntelligenceService;
 use App\Services\PriorityEngine;
 use App\Services\TodayIntelligenceService;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +23,8 @@ class DashboardController extends Controller
         Request $request,
         PriorityEngine $priorityEngine,
         DeadlineRiskEngine $riskEngine,
-        TodayIntelligenceService $todayIntelligenceService
+        TodayIntelligenceService $todayIntelligenceService,
+        FinanceIntelligenceService $financeIntelligence
     ): View {
         // Batch recalculate all active task priorities and deadline risks
         $priorityEngine->recalculateAllAndPersist();
@@ -40,6 +42,7 @@ class DashboardController extends Controller
         $highRiskTasks = $riskEngine->getHighRiskTasks();
 
         $todayIntelligence = $todayIntelligenceService->getTodayHub();
+        $financeOverview = $financeIntelligence->getTodayDashboardWidgetData();
 
         $stats = [
             'pending' => Task::where('status', 'pending')->count(),
@@ -61,17 +64,18 @@ class DashboardController extends Controller
             'upcomingTasks',
             'highRiskTasks',
             'todayIntelligence',
+            'financeOverview',
             'stats',
         ));
     }
 
     /**
-     * Return calendar data (tasks, events, notes) for a given month as JSON.
+     * Return calendar data (tasks, events, notes, finances) for a given month as JSON.
      */
-    public function calendarData(Request $request): JsonResponse
+    public function calendarData(Request $request, FinanceIntelligenceService $financeIntelligence): JsonResponse
     {
-        $year = $request->input('year', now()->year);
-        $month = $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
 
         $tasks = Task::whereYear('deadline', $year)
             ->whereMonth('deadline', $month)
@@ -88,10 +92,13 @@ class DashboardController extends Controller
             ->get()
             ->groupBy(fn ($note) => $note->note_date->format('Y-m-d'));
 
+        $finances = $financeIntelligence->getCalendarFinanceEvents($year, $month);
+
         return response()->json([
             'tasks' => $tasks,
             'events' => $events,
             'notes' => $notes,
+            'finances' => $finances,
         ]);
     }
 }

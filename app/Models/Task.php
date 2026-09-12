@@ -9,6 +9,7 @@ use App\Services\DeadlineRiskEngine;
 use App\Services\PriorityEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
@@ -33,6 +34,7 @@ class Task extends Model
         'deadline',
         'priority',
         'status',
+        'completed_at',
         'estimated_duration',
         'progress',
         'subtasks',
@@ -51,6 +53,7 @@ class Task extends Model
     {
         return [
             'deadline' => 'datetime',
+            'completed_at' => 'datetime',
             'estimated_duration' => 'integer',
             'progress' => 'integer',
             'subtasks' => 'array',
@@ -181,5 +184,13 @@ class Task extends Model
         }
 
         return count(array_filter($this->subtasks, fn ($st) => ! empty($st['completed'])));
+    }
+
+    /**
+     * Focus sessions logged for this task.
+     */
+    public function focusSessions(): HasMany
+    {
+        return $this->hasMany(FocusSession::class);
     }
 }

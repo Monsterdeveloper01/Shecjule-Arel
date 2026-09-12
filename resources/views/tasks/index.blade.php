@@ -192,6 +192,11 @@
             </div>
         </div>
         <div class="task-card-actions">
+            @if($task->status !== 'completed')
+            <a href="{{ route('productivity.index', ['focus_task_id' => $task->id]) }}" class="action-btn" title="Mulai Sesi Fokus untuk Tugas Ini" aria-label="Fokus" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">
+                <span>🎯</span>
+            </a>
+            @endif
             <button class="action-btn action-ai" onclick="openAiBreakdownForTask('{{ addslashes($task->title) }}', {{ $task->id }})" title="Pecah subtask dengan AI" aria-label="AI Breakdown">
                 <span>✨</span>
             </button>

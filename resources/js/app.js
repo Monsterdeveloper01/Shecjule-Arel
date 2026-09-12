@@ -749,8 +749,8 @@ function getOrCreateTooltip() {
     return tooltip;
 }
 
-function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
-    if (!hasTasks && !hasEvents && !hasNotes) return;
+function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes, hasFinances = false) {
+    if (!hasTasks && !hasEvents && !hasNotes && !hasFinances) return;
 
     const tooltip = getOrCreateTooltip();
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -759,6 +759,7 @@ function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
     const tasks = calendarData.tasks?.[dateStr] || [];
     const events = calendarData.events?.[dateStr] || [];
     const notes = calendarData.notes?.[dateStr] || [];
+    const finances = calendarData.finances?.[dateStr] || [];
 
     let html = `<div class="cal-tooltip-date">${day} ${monthNames[currentMonth]} ${currentYear}</div>`;
     html += '<div class="cal-tooltip-list">';
@@ -798,6 +799,18 @@ function showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes) {
             html += `<div class="cal-tooltip-row">
                 <span>${pinIcon}</span>
                 <span class="tooltip-title">${escapeHtml(n.title)}${fileIcon}</span>
+            </div>`;
+        });
+    }
+
+    if (finances.length > 0) {
+        finances.forEach(f => {
+            const icon = f.icon || (f.type === 'income' ? '💵' : (f.type === 'installment' ? '💳' : '🎯'));
+            const amtFormatted = f.amount ? ` - Rp ${new Intl.NumberFormat('id-ID').format(f.amount)}` : '';
+            html += `<div class="cal-tooltip-row">
+                <span>${icon}</span>
+                <span class="tooltip-title" style="color: #fef08a;">${escapeHtml(f.title)}${amtFormatted}</span>
+                <span class="tooltip-meta" style="color: ${f.color || '#eab308'}">${escapeHtml(f.badge || f.type)}</span>
             </div>`;
         });
     }
@@ -878,7 +891,7 @@ async function loadCalendar() {
         });
         calendarData = await res.json();
     } catch {
-        calendarData = { tasks: {}, events: {}, notes: {} };
+        calendarData = { tasks: {}, events: {}, notes: {}, finances: {} };
     }
 
     renderCalendar();
@@ -911,8 +924,9 @@ function renderCalendar() {
         const dayTasks = calendarData.tasks?.[dateStr] || [];
         const dayEvents = calendarData.events?.[dateStr] || [];
         const dayNotes = calendarData.notes?.[dateStr] || [];
+        const dayFinances = calendarData.finances?.[dateStr] || [];
 
-        const el = createCalDay(d, false, isToday, dateStr, dayTasks, dayEvents, dayNotes);
+        const el = createCalDay(d, false, isToday, dateStr, dayTasks, dayEvents, dayNotes, dayFinances);
         grid.appendChild(el);
     }
 
@@ -925,13 +939,13 @@ function renderCalendar() {
     }
 }
 
-function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', tasks = [], events = [], notes = []) {
+function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', tasks = [], events = [], notes = [], finances = []) {
     const el = document.createElement('div');
     el.className = 'cal-day';
     if (isOtherMonth) el.classList.add('other-month');
     if (isToday) el.classList.add('today');
 
-    const totalCount = (tasks?.length || 0) + (events?.length || 0) + (notes?.length || 0);
+    const totalCount = (tasks?.length || 0) + (events?.length || 0) + (notes?.length || 0) + (finances?.length || 0);
 
     // Day Header (number & count badge)
     const header = document.createElement('div');
@@ -950,7 +964,7 @@ function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', tasks = 
     }
     el.appendChild(header);
 
-    // Render Event / Task / Note Chip Badges
+    // Render Event / Task / Note / Finance Chip Badges
     if (!isOtherMonth && totalCount > 0) {
         const eventsContainer = document.createElement('div');
         eventsContainer.className = 'cal-day-events';
@@ -1009,7 +1023,27 @@ function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', tasks = 
             });
         }
 
-        // 4. More chip if remaining
+        // 4. Finances
+        if (finances && finances.length > 0) {
+            finances.forEach(f => {
+                if (itemsRendered < maxVisible) {
+                    const chip = document.createElement('div');
+                    chip.className = `cal-event-chip chip-finance`;
+                    chip.style.borderColor = 'rgba(234, 179, 8, 0.4)';
+                    chip.style.background = 'rgba(234, 179, 8, 0.15)';
+                    chip.style.color = '#fef08a';
+                    chip.title = `${f.title} (${f.type})`;
+                    chip.innerHTML = `
+                        <span class="chip-dot" style="background:#eab308;"></span>
+                        <span class="chip-text">${f.icon || '💰'} ${escapeHtml(f.title)}</span>
+                    `;
+                    eventsContainer.appendChild(chip);
+                    itemsRendered++;
+                }
+            });
+        }
+
+        // 5. More chip if remaining
         if (totalCount > maxVisible) {
             const moreChip = document.createElement('div');
             moreChip.className = 'cal-event-chip chip-more';
@@ -1029,8 +1063,9 @@ function createCalDay(day, isOtherMonth, isToday = false, dateStr = '', tasks = 
         const hasTasks = tasks && tasks.length > 0;
         const hasEvents = events && events.length > 0;
         const hasNotes = notes && notes.length > 0;
+        const hasFinances = finances && finances.length > 0;
 
-        el.addEventListener('mouseenter', (e) => showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes));
+        el.addEventListener('mouseenter', (e) => showCalTooltip(e, dateStr, day, hasTasks, hasEvents, hasNotes, hasFinances));
         el.addEventListener('mousemove', (e) => positionCalTooltip(e));
         el.addEventListener('mouseleave', () => hideCalTooltip());
     }
@@ -1066,10 +1101,11 @@ function openDayDetail(dateStr, day) {
     const tasks = calendarData.tasks?.[dateStr] || [];
     const events = calendarData.events?.[dateStr] || [];
     const notes = calendarData.notes?.[dateStr] || [];
+    const finances = calendarData.finances?.[dateStr] || [];
 
     let html = '';
 
-    if (tasks.length === 0 && events.length === 0 && notes.length === 0) {
+    if (tasks.length === 0 && events.length === 0 && notes.length === 0 && finances.length === 0) {
         html = `
             <div class="day-detail-empty">
                 <p style="margin-bottom: 12px;">Tidak ada aktivitas di hari ini</p>
@@ -1182,6 +1218,26 @@ function openDayDetail(dateStr, day) {
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
                         </button>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
+        if (finances.length > 0) {
+            html += '<div class="day-detail-section"><h4>💰 Agenda & Kewajiban Finansial (' + finances.length + ')</h4>';
+            finances.forEach(f => {
+                const icon = f.icon || '💰';
+                const color = f.color || '#eab308';
+                const amtFormatted = f.amount ? `Rp ${new Intl.NumberFormat('id-ID').format(f.amount)}` : '';
+                html += `<div class="day-detail-item" style="border-left-color: ${color}">
+                    <div class="day-detail-item-body">
+                        <div class="item-title" style="color: #fff;">${icon} ${escapeHtml(f.title)}</div>
+                        <div class="item-meta" style="color: var(--text-secondary);">
+                            <strong style="color: ${color};">${amtFormatted}</strong> · <span style="text-transform: capitalize;">${escapeHtml(f.type)}</span>
+                            ${f.badge ? `· <span class="badge badge-sm" style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">${escapeHtml(f.badge)}</span>` : ''}
+                        </div>
+                        ${f.subtitle ? `<div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">${escapeHtml(f.subtitle)}</div>` : ''}
                     </div>
                 </div>`;
             });
@@ -2451,3 +2507,1081 @@ document.addEventListener('paste', (e) => {
         }
     }
 });
+
+// ==========================================
+// V4 PERSONAL OS — Focus Mode & Habits Module
+// ==========================================
+
+let focusTimerState = {
+    running: false,
+    intervalId: null,
+    totalSeconds: 25 * 60,
+    remainingSeconds: 25 * 60,
+    type: 'pomodoro',
+    taskId: null,
+};
+
+window.switchProdTab = function(tabName) {
+    const tabs = ['focus', 'habits', 'analytics', 'review'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const sec = document.getElementById(`tabSection${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn && sec) {
+            if (t === tabName) {
+                btn.classList.add('active');
+                sec.style.display = 'block';
+            } else {
+                btn.classList.remove('active');
+                sec.style.display = 'none';
+            }
+        }
+    });
+};
+
+window.selectTimerPreset = function(minutes, type, btnElement) {
+    if (focusTimerState.running) {
+        if (!confirm('Sesi sedang berjalan. Ubah durasi timer?')) return;
+        clearInterval(focusTimerState.intervalId);
+        focusTimerState.running = false;
+    }
+
+    document.querySelectorAll('.timer-type-btn').forEach(b => b.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+
+    focusTimerState.totalSeconds = minutes * 60;
+    focusTimerState.remainingSeconds = minutes * 60;
+    focusTimerState.type = type;
+
+    updateTimerDisplay();
+
+    const toggleBtn = document.getElementById('btnTimerToggle');
+    if (toggleBtn) toggleBtn.innerHTML = '▶ Mulai Sesi';
+    const statusText = document.getElementById('timerStatusText');
+    if (statusText) statusText.textContent = 'Siap Fokus';
+    const finishBtn = document.getElementById('btnTimerFinish');
+    if (finishBtn) finishBtn.style.display = 'none';
+};
+
+window.toggleTimer = function() {
+    const toggleBtn = document.getElementById('btnTimerToggle');
+    const statusText = document.getElementById('timerStatusText');
+    const finishBtn = document.getElementById('btnTimerFinish');
+
+    if (!focusTimerState.running) {
+        // Start Timer
+        focusTimerState.running = true;
+        if (toggleBtn) toggleBtn.innerHTML = '⏸ Jeda';
+        if (statusText) statusText.textContent = 'Sesi Sedang Berjalan...';
+        if (finishBtn) finishBtn.style.display = 'inline-block';
+
+        const taskSelect = document.getElementById('focusTaskSelect');
+        if (taskSelect) {
+            focusTimerState.taskId = taskSelect.value ? parseInt(taskSelect.value, 10) : null;
+        }
+
+        focusTimerState.intervalId = setInterval(() => {
+            if (focusTimerState.remainingSeconds > 0) {
+                focusTimerState.remainingSeconds--;
+                updateTimerDisplay();
+            } else {
+                clearInterval(focusTimerState.intervalId);
+                focusTimerState.running = false;
+                onTimerFinished();
+            }
+        }, 1000);
+    } else {
+        // Pause Timer
+        clearInterval(focusTimerState.intervalId);
+        focusTimerState.running = false;
+        if (toggleBtn) toggleBtn.innerHTML = '▶ Lanjutkan';
+        if (statusText) statusText.textContent = 'Dijeda';
+    }
+};
+
+window.resetTimer = function() {
+    clearInterval(focusTimerState.intervalId);
+    focusTimerState.running = false;
+    focusTimerState.remainingSeconds = focusTimerState.totalSeconds;
+
+    const toggleBtn = document.getElementById('btnTimerToggle');
+    if (toggleBtn) toggleBtn.innerHTML = '▶ Mulai Sesi';
+    const statusText = document.getElementById('timerStatusText');
+    if (statusText) statusText.textContent = 'Siap Fokus';
+    const finishBtn = document.getElementById('btnTimerFinish');
+    if (finishBtn) finishBtn.style.display = 'none';
+
+    updateTimerDisplay();
+};
+
+function updateTimerDisplay() {
+    const digitsEl = document.getElementById('timerDigits');
+    if (!digitsEl) return;
+
+    const mins = Math.floor(focusTimerState.remainingSeconds / 60);
+    const secs = focusTimerState.remainingSeconds % 60;
+    digitsEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    // SVG Dial progress
+    const circle = document.getElementById('timerProgressCircle');
+    if (circle) {
+        const radius = 95;
+        const circumference = 2 * Math.PI * radius;
+        const progress = focusTimerState.remainingSeconds / focusTimerState.totalSeconds;
+        const offset = circumference * (1 - progress);
+        circle.style.strokeDasharray = `${circumference}`;
+        circle.style.strokeDashoffset = `${offset}`;
+    }
+}
+
+window.finishSessionManually = function() {
+    if (!confirm('Selesaikan sesi fokus sekarang dan simpan progres ke log?')) return;
+    clearInterval(focusTimerState.intervalId);
+    focusTimerState.running = false;
+    onTimerFinished(true);
+};
+
+async function onTimerFinished(manual = false) {
+    const elapsedMinutes = Math.max(1, Math.round((focusTimerState.totalSeconds - focusTimerState.remainingSeconds) / 60));
+    const taskSelect = document.getElementById('focusTaskSelect');
+    const taskId = taskSelect && taskSelect.value ? parseInt(taskSelect.value, 10) : null;
+
+    let markCompleted = false;
+    if (taskId) {
+        markCompleted = confirm(`Sesi ${elapsedMinutes} menit selesai! Apakah tugas ini ingin ditandai Selesai (100%)?`);
+    }
+
+    try {
+        const res = await apiRequest('/productivity/focus-sessions', 'POST', {
+            task_id: taskId,
+            type: focusTimerState.type,
+            duration_minutes: elapsedMinutes,
+            notes: manual ? 'Selesai manual' : 'Sesi timer tuntas',
+            mark_task_completed: markCompleted,
+        });
+
+        if (res.success) {
+            showToast(`Sesi fokus ${elapsedMinutes} menit berhasil dicatat! 🎉`, 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1200);
+        } else {
+            showToast('Gagal mencatat sesi fokus.', 'error');
+            resetTimer();
+        }
+    } catch (err) {
+        console.error('Focus session save error:', err);
+        showToast('Gagal mencatat sesi fokus.', 'error');
+        resetTimer();
+    }
+}
+
+// Habits Interactivity
+window.toggleHabitCheckin = async function(habitId, btnElement) {
+    if (!habitId) return;
+    btnElement.disabled = true;
+
+    try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const res = await apiRequest(`/productivity/habits/${habitId}/toggle`, 'POST', {
+            date: todayStr,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Status rutinitas diperbarui!', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            showToast('Gagal memperbarui rutinitas.', 'error');
+            btnElement.disabled = false;
+        }
+    } catch (err) {
+        console.error('Habit toggle error:', err);
+        showToast('Gagal memperbarui rutinitas.', 'error');
+        btnElement.disabled = false;
+    }
+};
+
+window.openAddHabitModal = function() {
+    const modal = document.getElementById('addHabitModalOverlay');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeAddHabitModal = function() {
+    const modal = document.getElementById('addHabitModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitNewHabit = async function(e) {
+    e.preventDefault();
+
+    const title = document.getElementById('habitTitleInput')?.value.trim();
+    const icon = document.getElementById('habitIconInput')?.value.trim() || '⚡';
+    const category = document.getElementById('habitCategorySelect')?.value || 'kesehatan';
+    const cadence = document.getElementById('habitCadenceSelect')?.value || 'alternate_days';
+    const description = document.getElementById('habitDescInput')?.value.trim();
+
+    if (!title) {
+        showToast('Nama rutinitas wajib diisi!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest('/productivity/habits', 'POST', {
+            title,
+            icon,
+            category,
+            cadence,
+            description,
+        });
+
+        if (res.success) {
+            showToast('Rutinitas berhasil ditambahkan! 🚀', 'success');
+            closeAddHabitModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            showToast('Gagal membuat rutinitas.', 'error');
+        }
+    } catch (err) {
+        console.error('Habit create error:', err);
+        showToast('Gagal membuat rutinitas.', 'error');
+    }
+};
+
+window.deleteHabit = async function(habitId) {
+    if (!confirm('Apakah kamu yakin ingin menghapus rutinitas ini?')) return;
+
+    try {
+        const res = await apiRequest(`/productivity/habits/${habitId}`, 'DELETE');
+        if (res.success) {
+            showToast('Rutinitas dihapus.', 'info');
+            const card = document.getElementById(`habit-card-${habitId}`);
+            if (card) card.remove();
+        } else {
+            showToast('Gagal menghapus rutinitas.', 'error');
+        }
+    } catch (err) {
+        console.error('Habit delete error:', err);
+        showToast('Gagal menghapus rutinitas.', 'error');
+    }
+};
+
+// URL query parameter check for auto-launching Focus mode with a task
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const focusTaskId = urlParams.get('focus_task_id');
+    if (focusTaskId) {
+        switchProdTab('focus');
+        const taskSelect = document.getElementById('focusTaskSelect');
+        if (taskSelect) {
+            taskSelect.value = focusTaskId;
+            showToast('Tugas ditautkan ke sesi fokus!', 'info');
+        }
+    }
+});
+
+// ==========================================
+// PERSONAL FINANCE — Phase 1: Ledger Module
+// ==========================================
+
+window.openTransactionModal = function(defaultType = 'expense') {
+    const modal = document.getElementById('transactionModalOverlay');
+    const typeSelect = document.getElementById('txTypeSelect');
+    if (typeSelect && defaultType) {
+        typeSelect.value = defaultType;
+        onTxTypeChange();
+    }
+    if (modal) modal.classList.add('active');
+};
+
+window.closeTransactionModal = function() {
+    const modal = document.getElementById('transactionModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.onTxTypeChange = function() {
+    const typeSelect = document.getElementById('txTypeSelect');
+    const destGroup = document.getElementById('txDestAccountGroup');
+    const destSelect = document.getElementById('txDestAccountSelect');
+    const catGroup = document.getElementById('txCategoryGroup');
+
+    if (!typeSelect) return;
+
+    if (typeSelect.value === 'transfer') {
+        if (destGroup) destGroup.style.display = 'block';
+        if (destSelect) destSelect.required = true;
+        if (catGroup) catGroup.style.display = 'none';
+    } else {
+        if (destGroup) destGroup.style.display = 'none';
+        if (destSelect) destSelect.required = false;
+        if (catGroup) catGroup.style.display = 'block';
+    }
+};
+
+window.submitTransaction = async function(e) {
+    e.preventDefault();
+
+    const account_id = document.getElementById('txAccountSelect')?.value;
+    const destination_account_id = document.getElementById('txDestAccountSelect')?.value || null;
+    const type = document.getElementById('txTypeSelect')?.value;
+    const category_id = document.getElementById('txCategorySelect')?.value || null;
+    const amount = parseFloat(document.getElementById('txAmountInput')?.value || 0);
+    const transaction_date = document.getElementById('txDateInput')?.value;
+    const description = document.getElementById('txDescInput')?.value.trim();
+    const notes = document.getElementById('txNotesInput')?.value.trim() || null;
+
+    if (!account_id || !type || isNaN(amount) || amount <= 0 || !description) {
+        showToast('Mohon lengkapi formulir transaksi dengan benar!', 'warning');
+        return;
+    }
+
+    if (type === 'transfer' && (!destination_account_id || destination_account_id === account_id)) {
+        showToast('Pilih akun tujuan yang berbeda untuk transfer!', 'warning');
+        return;
+    }
+
+    const submitBtn = document.getElementById('btnSubmitTx');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        const res = await apiRequest('/finance/transactions', 'POST', {
+            account_id: parseInt(account_id, 10),
+            destination_account_id: destination_account_id ? parseInt(destination_account_id, 10) : null,
+            type,
+            category_id: category_id ? parseInt(category_id, 10) : null,
+            amount,
+            transaction_date,
+            description,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Transaksi berhasil dicatat!', 'success');
+            closeTransactionModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal mencatat transaksi.', 'error');
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    } catch (err) {
+        console.error('Transaction save error:', err);
+        showToast('Terjadi kesalahan saat mencatat transaksi.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
+    }
+};
+
+window.deleteTransaction = async function(transactionId) {
+    if (!confirm('Apakah kamu yakin ingin menghapus transaksi ini? Saldo akun akan dikalkulasi ulang.')) return;
+
+    try {
+        const res = await apiRequest(`/finance/transactions/${transactionId}`, 'DELETE');
+        if (res.success) {
+            showToast('Transaksi berhasil dihapus!', 'info');
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } else {
+            showToast('Gagal menghapus transaksi.', 'error');
+        }
+    } catch (err) {
+        console.error('Delete transaction error:', err);
+        showToast('Terjadi kesalahan saat menghapus transaksi.', 'error');
+    }
+};
+
+window.openAccountModal = function() {
+    const modal = document.getElementById('accountModalOverlay');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeAccountModal = function() {
+    const modal = document.getElementById('accountModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitAccount = async function(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('accNameInput')?.value.trim();
+    const type = document.getElementById('accTypeSelect')?.value;
+    const opening_balance = parseFloat(document.getElementById('accOpeningBalanceInput')?.value || 0);
+    const notes = document.getElementById('accNotesInput')?.value.trim() || null;
+
+    if (!name) {
+        showToast('Nama akun wajib diisi!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest('/finance/accounts', 'POST', {
+            name,
+            type,
+            opening_balance,
+            notes,
+        });
+
+        if (res.success) {
+            showToast('Akun berhasil dibuat!', 'success');
+            closeAccountModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast('Gagal membuat akun.', 'error');
+        }
+    } catch (err) {
+        console.error('Account save error:', err);
+        showToast('Terjadi kesalahan saat membuat akun.', 'error');
+    }
+};
+
+// ==========================================
+// PERSONAL FINANCE — Phase 2: Income & Budget
+// ==========================================
+
+window.switchFinanceTab = function(tabName) {
+    const tabs = ['ledger', 'income', 'budget', 'installments', 'savings', 'intelligence'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const sec = document.getElementById(`tabSection${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn && sec) {
+            if (t === tabName) {
+                btn.classList.add('active');
+                sec.style.display = 'block';
+            } else {
+                btn.classList.remove('active');
+                sec.style.display = 'none';
+            }
+        }
+    });
+};
+
+window.openIncomeScheduleModal = function() {
+    const modal = document.getElementById('incomeScheduleModalOverlay');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeIncomeScheduleModal = function() {
+    const modal = document.getElementById('incomeScheduleModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitIncomeSchedule = async function(e) {
+    e.preventDefault();
+
+    const weekday_amounts = {
+        '1': parseFloat(document.getElementById('schDay1')?.value || 0),
+        '2': parseFloat(document.getElementById('schDay2')?.value || 0),
+        '3': parseFloat(document.getElementById('schDay3')?.value || 0),
+        '4': parseFloat(document.getElementById('schDay4')?.value || 0),
+        '5': parseFloat(document.getElementById('schDay5')?.value || 0),
+        '6': parseFloat(document.getElementById('schDay6')?.value || 0),
+        '7': parseFloat(document.getElementById('schDay7')?.value || 0),
+    };
+
+    try {
+        const res = await apiRequest('/finance/income/schedule', 'POST', {
+            type: 'daily_variable',
+            weekday_amounts,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Pola pemasukan mingguan berhasil disimpan!', 'success');
+            closeIncomeScheduleModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal menyimpan pola pemasukan.', 'error');
+        }
+    } catch (err) {
+        console.error('Schedule save error:', err);
+        showToast('Terjadi kesalahan saat menyimpan pola pemasukan.', 'error');
+    }
+};
+
+window.openOverrideModal = function() {
+    const modal = document.getElementById('overrideModalOverlay');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeOverrideModal = function() {
+    const modal = document.getElementById('overrideModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitOverride = async function(e) {
+    e.preventDefault();
+
+    const is_extra = document.getElementById('ovIsExtraSelect')?.value === '1';
+    const override_date = document.getElementById('ovDateInput')?.value;
+    const title = document.getElementById('ovTitleInput')?.value.trim();
+    const amount = parseFloat(document.getElementById('ovAmountInput')?.value || 0);
+    const notes = document.getElementById('ovNotesInput')?.value.trim() || null;
+
+    if (!override_date || !title || isNaN(amount) || amount <= 0) {
+        showToast('Lengkapi data pemasukan ekstra dengan benar!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest('/finance/income/overrides', 'POST', {
+            override_date,
+            title,
+            amount,
+            is_extra,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Jadwal pemasukan berhasil disimpan!', 'success');
+            closeOverrideModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal menyimpan jadwal.', 'error');
+        }
+    } catch (err) {
+        console.error('Override save error:', err);
+        showToast('Terjadi kesalahan saat menyimpan jadwal.', 'error');
+    }
+};
+
+window.deleteIncomeOverride = async function(id) {
+    if (!confirm('Apakah kamu yakin ingin menghapus jadwal ini?')) return;
+
+    try {
+        const res = await apiRequest(`/finance/income/overrides/${id}`, 'DELETE');
+        if (res.success) {
+            showToast('Jadwal berhasil dihapus!', 'info');
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } else {
+            showToast('Gagal menghapus jadwal.', 'error');
+        }
+    } catch (err) {
+        console.error('Delete override error:', err);
+        showToast('Terjadi kesalahan saat menghapus jadwal.', 'error');
+    }
+};
+
+window.submitEssentialBudget = async function(e) {
+    e.preventDefault();
+
+    const food = parseFloat(document.getElementById('budgetFoodInput')?.value || 0);
+    const transport = parseFloat(document.getElementById('budgetTransportInput')?.value || 0);
+    const snack = parseFloat(document.getElementById('budgetSnackInput')?.value || 0);
+    const other = parseFloat(document.getElementById('budgetOtherInput')?.value || 0);
+    const notes = document.getElementById('budgetNotesInput')?.value.trim() || null;
+
+    try {
+        const res = await apiRequest('/finance/budget', 'POST', {
+            food,
+            transport,
+            snack,
+            other,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Kebutuhan pokok harian berhasil diperbarui!', 'success');
+            const totalPreview = document.getElementById('budgetTotalPreview');
+            const total = food + transport + snack + other;
+            if (totalPreview) {
+                totalPreview.textContent = `Rp ${total.toLocaleString('id-ID')} / hari`;
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal menyimpan anggaran pokok.', 'error');
+        }
+    } catch (err) {
+        console.error('Budget save error:', err);
+        showToast('Terjadi kesalahan saat menyimpan anggaran pokok.', 'error');
+    }
+};
+
+// ==========================================
+// PERSONAL FINANCE — Phase 3: Installments
+// ==========================================
+
+window.openInstallmentModal = function() {
+    const modal = document.getElementById('installmentModalOverlay');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeInstallmentModal = function() {
+    const modal = document.getElementById('installmentModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitInstallment = async function(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('instNameInput')?.value.trim();
+    const category = document.getElementById('instCategorySelect')?.value || 'elektronik';
+    const due_day = parseInt(document.getElementById('instDueDayInput')?.value || '24', 10);
+    const monthly_amount = parseFloat(document.getElementById('instMonthlyAmountInput')?.value || 0);
+    const total_amount = parseFloat(document.getElementById('instTotalAmountInput')?.value || 0);
+    const start_date = document.getElementById('instStartDateInput')?.value;
+    const end_date = document.getElementById('instEndDateInput')?.value || null;
+    const notes = document.getElementById('instNotesInput')?.value.trim() || null;
+
+    if (!name || isNaN(monthly_amount) || monthly_amount <= 0 || isNaN(total_amount) || total_amount <= 0) {
+        showToast('Mohon lengkapi formulir cicilan dengan benar!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest('/finance/installments', 'POST', {
+            name,
+            category,
+            due_day,
+            monthly_amount,
+            total_amount,
+            start_date,
+            end_date,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Cicilan berhasil ditambahkan!', 'success');
+            closeInstallmentModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal menyimpan cicilan.', 'error');
+        }
+    } catch (err) {
+        console.error('Installment save error:', err);
+        showToast('Terjadi kesalahan saat menyimpan cicilan.', 'error');
+    }
+};
+
+window.deleteInstallment = async function(id) {
+    if (!confirm('Apakah kamu yakin ingin menghapus data cicilan ini?')) return;
+
+    try {
+        const res = await apiRequest(`/finance/installments/${id}`, 'DELETE');
+        if (res.success) {
+            showToast('Cicilan berhasil dihapus!', 'info');
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } else {
+            showToast(res.message || 'Gagal menghapus cicilan.', 'error');
+        }
+    } catch (err) {
+        console.error('Delete installment error:', err);
+        showToast('Terjadi kesalahan saat menghapus cicilan.', 'error');
+    }
+};
+
+window.openReserveModal = function(id, name, remainingObligation) {
+    const modal = document.getElementById('reserveModalOverlay');
+    const idInput = document.getElementById('reserveInstallmentId');
+    const title = document.getElementById('reserveTargetTitle');
+    const amountInput = document.getElementById('reserveAmountInput');
+
+    if (idInput) idInput.value = id;
+    if (title) title.textContent = `Cicilan: ${name} (Sisa Perlu Dicadangkan: Rp ${Number(remainingObligation).toLocaleString('id-ID')})`;
+    if (amountInput) amountInput.value = remainingObligation > 0 ? remainingObligation : '';
+
+    if (modal) modal.classList.add('active');
+};
+
+window.closeReserveModal = function() {
+    const modal = document.getElementById('reserveModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitReserve = async function(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('reserveInstallmentId')?.value;
+    const account_id = document.getElementById('reserveAccountSelect')?.value;
+    const amount = parseFloat(document.getElementById('reserveAmountInput')?.value || 0);
+    const notes = document.getElementById('reserveNotesInput')?.value.trim() || null;
+
+    if (!id || !account_id || isNaN(amount) || amount <= 0) {
+        showToast('Tentukan akun kas dan nominal cadangan dengan benar!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest(`/finance/installments/${id}/reserve`, 'POST', {
+            account_id,
+            amount,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Dana berhasil dicadangkan!', 'success');
+            closeReserveModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal mencadangkan dana.', 'error');
+        }
+    } catch (err) {
+        console.error('Reserve save error:', err);
+        showToast('Terjadi kesalahan saat mencadangkan dana.', 'error');
+    }
+};
+
+window.openPayInstallmentModal = function(id, name, monthlyAmount) {
+    const modal = document.getElementById('payInstallmentModalOverlay');
+    const idInput = document.getElementById('payInstallmentId');
+    const title = document.getElementById('payTargetTitle');
+    const amountInput = document.getElementById('payAmountInput');
+
+    if (idInput) idInput.value = id;
+    if (title) title.textContent = `Tagihan: ${name} (Nominal: Rp ${Number(monthlyAmount).toLocaleString('id-ID')})`;
+    if (amountInput) amountInput.value = monthlyAmount;
+
+    if (modal) modal.classList.add('active');
+};
+
+window.closePayInstallmentModal = function() {
+    const modal = document.getElementById('payInstallmentModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitPayInstallment = async function(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('payInstallmentId')?.value;
+    const account_id = document.getElementById('payAccountSelect')?.value;
+    const amount = parseFloat(document.getElementById('payAmountInput')?.value || 0);
+    const transaction_date = document.getElementById('payDateInput')?.value;
+    const notes = document.getElementById('payNotesInput')?.value.trim() || null;
+
+    if (!id || !account_id || isNaN(amount) || amount <= 0) {
+        showToast('Tentukan akun pembayar dan nominal pembayaran dengan benar!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest(`/finance/installments/${id}/pay`, 'POST', {
+            account_id,
+            amount,
+            transaction_date,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Pembayaran cicilan berhasil dicatat!', 'success');
+            closePayInstallmentModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal mencatat pembayaran cicilan.', 'error');
+        }
+    } catch (err) {
+        console.error('Pay installment error:', err);
+        showToast('Terjadi kesalahan saat mencatat pembayaran.', 'error');
+    }
+};
+
+// ==========================================
+// PERSONAL FINANCE — Phase 4: Savings Goals
+// ==========================================
+
+window.openSavingsGoalModal = function() {
+    const modal = document.getElementById('savingsGoalModalOverlay');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeSavingsGoalModal = function() {
+    const modal = document.getElementById('savingsGoalModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.onGoalTypeChange = function() {
+    const typeSelect = document.getElementById('goalTypeSelect');
+    const dateGroup = document.getElementById('goalDateGroup');
+    const dateInput = document.getElementById('goalTargetDateInput');
+    if (!typeSelect || !dateGroup) return;
+
+    if (typeSelect.value === 'deadline') {
+        dateGroup.style.display = 'block';
+        if (dateInput) dateInput.required = true;
+    } else {
+        dateGroup.style.display = 'none';
+        if (dateInput) dateInput.required = false;
+    }
+};
+
+window.submitSavingsGoal = async function(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('goalNameInput')?.value.trim();
+    const type = document.getElementById('goalTypeSelect')?.value || 'deadline';
+    const target_amount = parseFloat(document.getElementById('goalTargetAmountInput')?.value || 0);
+    const target_date = type === 'deadline' ? document.getElementById('goalTargetDateInput')?.value : null;
+    const icon = document.getElementById('goalIconSelect')?.value || '🎯';
+    const color = document.getElementById('goalColorSelect')?.value || '#10b981';
+    const notes = document.getElementById('goalNotesInput')?.value.trim() || null;
+
+    if (!name || isNaN(target_amount) || target_amount <= 0) {
+        showToast('Mohon lengkapi target tabungan dengan benar!', 'warning');
+        return;
+    }
+
+    if (type === 'deadline' && !target_date) {
+        showToast('Tanggal target deadline wajib diisi!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest('/finance/savings', 'POST', {
+            name,
+            type,
+            target_amount,
+            target_date,
+            icon,
+            color,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Target tabungan berhasil dibuat!', 'success');
+            closeSavingsGoalModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal membuat target tabungan.', 'error');
+        }
+    } catch (err) {
+        console.error('Savings goal save error:', err);
+        showToast('Terjadi kesalahan saat menyimpan target.', 'error');
+    }
+};
+
+window.deleteSavingsGoal = async function(id) {
+    if (!confirm('Apakah kamu yakin ingin menghapus target tabungan ini?')) return;
+
+    try {
+        const res = await apiRequest(`/finance/savings/${id}`, 'DELETE');
+        if (res.success) {
+            showToast('Target tabungan berhasil dihapus!', 'info');
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
+        } else {
+            showToast(res.message || 'Gagal menghapus target tabungan.', 'error');
+        }
+    } catch (err) {
+        console.error('Delete savings goal error:', err);
+        showToast('Terjadi kesalahan saat menghapus target tabungan.', 'error');
+    }
+};
+
+window.openSaveFundsModal = function(id, name, remainingAmount) {
+    const modal = document.getElementById('saveFundsModalOverlay');
+    const idInput = document.getElementById('saveFundsGoalId');
+    const title = document.getElementById('saveFundsTargetTitle');
+    const amountInput = document.getElementById('saveFundsAmountInput');
+
+    if (idInput) idInput.value = id;
+    if (title) title.textContent = `Target: ${name} (Sisa Menuju Target: Rp ${Number(remainingAmount).toLocaleString('id-ID')})`;
+    if (amountInput) amountInput.value = '';
+
+    if (modal) modal.classList.add('active');
+};
+
+window.closeSaveFundsModal = function() {
+    const modal = document.getElementById('saveFundsModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitSaveFunds = async function(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('saveFundsGoalId')?.value;
+    const account_id = document.getElementById('saveFundsAccountSelect')?.value;
+    const amount = parseFloat(document.getElementById('saveFundsAmountInput')?.value || 0);
+    const allocation_date = document.getElementById('saveFundsDateInput')?.value;
+    const notes = document.getElementById('saveFundsNotesInput')?.value.trim() || null;
+
+    if (!id || !account_id || isNaN(amount) || amount <= 0) {
+        showToast('Tentukan akun kas dan nominal tabungan dengan benar!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest(`/finance/savings/${id}/allocate`, 'POST', {
+            account_id,
+            amount,
+            allocation_date,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Dana berhasil ditabung!', 'success');
+            closeSaveFundsModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal menabung dana.', 'error');
+        }
+    } catch (err) {
+        console.error('Save funds error:', err);
+        showToast('Terjadi kesalahan saat menabung dana.', 'error');
+    }
+};
+
+window.openWithdrawSavingsModal = function(id, name, currentAmount) {
+    const modal = document.getElementById('withdrawSavingsModalOverlay');
+    const idInput = document.getElementById('withdrawGoalId');
+    const title = document.getElementById('withdrawTargetTitle');
+    const amountInput = document.getElementById('withdrawAmountInput');
+
+    if (idInput) idInput.value = id;
+    if (title) title.textContent = `Target: ${name} (Terkumpul Saat Ini: Rp ${Number(currentAmount).toLocaleString('id-ID')})`;
+    if (amountInput) {
+        amountInput.value = currentAmount;
+        amountInput.max = currentAmount;
+    }
+
+    if (modal) modal.classList.add('active');
+};
+
+window.closeWithdrawSavingsModal = function() {
+    const modal = document.getElementById('withdrawSavingsModalOverlay');
+    if (modal) modal.classList.remove('active');
+};
+
+window.submitWithdrawSavings = async function(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('withdrawGoalId')?.value;
+    const account_id = document.getElementById('withdrawAccountSelect')?.value;
+    const amount = parseFloat(document.getElementById('withdrawAmountInput')?.value || 0);
+    const is_expense = document.getElementById('withdrawIsExpenseSelect')?.value === '1';
+    const notes = document.getElementById('withdrawNotesInput')?.value.trim() || null;
+
+    if (!id || !account_id || isNaN(amount) || amount <= 0) {
+        showToast('Tentukan akun dan nominal penarikan dengan benar!', 'warning');
+        return;
+    }
+
+    try {
+        const res = await apiRequest(`/finance/savings/${id}/withdraw`, 'POST', {
+            account_id,
+            amount,
+            is_expense,
+            notes,
+        });
+
+        if (res.success) {
+            showToast(res.message || 'Penarikan berhasil diproses!', 'success');
+            closeWithdrawSavingsModal();
+            setTimeout(() => {
+                window.location.reload();
+            }, 700);
+        } else {
+            showToast(res.message || 'Gagal memproses penarikan tabungan.', 'error');
+        }
+    } catch (err) {
+        console.error('Withdraw savings error:', err);
+        showToast('Terjadi kesalahan saat memproses penarikan.', 'error');
+    }
+};
+
+// ==========================================
+// PERSONAL FINANCE — Phase 5: Intelligence Simulator
+// ==========================================
+
+window.checkDateSafeToSpend = async function() {
+    const dateInput = document.getElementById('simDateInput');
+    if (!dateInput || !dateInput.value) {
+        showToast('Pilih tanggal terlebih dahulu!', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnSimulate');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Menghitung...';
+    }
+
+    try {
+        const res = await apiRequest('/finance/safe-to-spend', 'POST', {
+            date: dateInput.value,
+        });
+
+        if (res.success && res.data) {
+            const d = res.data;
+            const emptyText = document.getElementById('simEmptyText');
+            const details = document.getElementById('simDetails');
+            if (emptyText) emptyText.style.display = 'none';
+            if (details) details.style.display = 'block';
+
+            const dateLabel = document.getElementById('simDateLabel');
+            if (dateLabel) dateLabel.textContent = `Simulasi Tanggal: ${d.date}`;
+
+            const badge = document.getElementById('simBadge');
+            if (badge) {
+                if (d.status_tone === 'positive') {
+                    badge.textContent = '🟢 AMAN';
+                    badge.style.background = 'rgba(34, 197, 94, 0.2)';
+                    badge.style.color = '#86efac';
+                } else if (d.status_tone === 'cautious') {
+                    badge.textContent = '🟡 WASPADA';
+                    badge.style.background = 'rgba(234, 179, 8, 0.2)';
+                    badge.style.color = '#fde047';
+                } else {
+                    badge.textContent = '🔴 DEFISIT / OVERSPENT';
+                    badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    badge.style.color = '#f87171';
+                }
+            }
+
+            const amountEl = document.getElementById('simAmount');
+            if (amountEl) {
+                amountEl.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(d.safe_to_spend_today)}`;
+                amountEl.style.color = d.safe_to_spend_today > 0 ? '#4ade80' : '#f87171';
+            }
+
+            const incomeEl = document.getElementById('simIncome');
+            if (incomeEl) incomeEl.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(d.expected_income_today)}`;
+
+            const essEl = document.getElementById('simEssential');
+            if (essEl) essEl.textContent = `- Rp ${new Intl.NumberFormat('id-ID').format(d.essential_allowance_today)}`;
+
+            const instEl = document.getElementById('simInstallment');
+            if (instEl) instEl.textContent = `- Rp ${new Intl.NumberFormat('id-ID').format(d.installment_daily_today)}`;
+
+            const savEl = document.getElementById('simSavings');
+            if (savEl) savEl.textContent = `- Rp ${new Intl.NumberFormat('id-ID').format(d.savings_daily_today)}`;
+
+            const cashEl = document.getElementById('simCash');
+            if (cashEl) cashEl.textContent = `Rp ${new Intl.NumberFormat('id-ID').format(d.available_cash)}`;
+        } else {
+            showToast(res.message || 'Gagal menghitung safe-to-spend.', 'error');
+        }
+    } catch (err) {
+        console.error('Safe to spend simulation error:', err);
+        showToast('Terjadi kesalahan saat menghitung safe-to-spend.', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '⚡ Hitung';
+        }
+    }
+};
+
+

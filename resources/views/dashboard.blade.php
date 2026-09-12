@@ -203,6 +203,75 @@
                 <p class="greeting-date">{{ now()->translatedFormat('l, d F Y') }}</p>
             </div>
 
+            {{-- Personal OS Quick Widget (V4) --}}
+            <div class="glass-card" style="padding: 16px; border-radius: var(--radius-lg); background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%); border: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 15px;">⚡</span>
+                        <strong style="font-size: 13px; color: #fff;">Personal OS Hub</strong>
+                    </div>
+                    <a href="{{ route('productivity.index') }}" style="font-size: 11px; color: #fca5a5; text-decoration: none; font-weight: 700;">Buka OS ➔</a>
+                </div>
+                <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
+                    Lacak rutinitas, gym selang-seling (rest day aman), dan fokus kerja mendalam.
+                </p>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{{ route('productivity.index') }}" class="btn btn-primary btn-sm" style="flex: 1; text-align: center; text-decoration: none; justify-content: center; font-size: 11px; padding: 6px 12px;">
+                        🎯 Mulai Sesi Fokus
+                    </a>
+                </div>
+            </div>
+
+            {{-- Personal Finance Today & Safe-to-Spend Widget (Phase 5) --}}
+            @if(isset($financeOverview))
+            <div class="glass-card" style="padding: 16px; border-radius: var(--radius-lg); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(56, 189, 248, 0.08) 100%); border: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 15px;">💰</span>
+                        <strong style="font-size: 13px; color: #fff;">Finance & Safe-to-Spend</strong>
+                    </div>
+                    <a href="{{ route('finance.index') }}" style="font-size: 11px; color: #86efac; text-decoration: none; font-weight: 700;">Buku Kas ➔</a>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; padding: 8px 10px; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.04);">
+                    <div>
+                        <span style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase;">Safe to Spend Hari Ini:</span>
+                        <div style="font-size: 17px; font-weight: 800; color: #86efac; margin-top: 2px;">
+                            Rp {{ number_format($financeOverview['safe_to_spend_remaining'], 0, ',', '.') }}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: {{ $financeOverview['status_color'] }}22; color: {{ $financeOverview['status_color'] }};">
+                            {{ $financeOverview['status_label'] }}
+                        </span>
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 3px;">
+                            Bebas: Rp {{ number_format($financeOverview['available_balance'], 0, ',', '.') }}
+                        </div>
+                    </div>
+                </div>
+
+                @if(!empty($financeOverview['upcoming_obligations']))
+                    <div style="margin-bottom: 8px;">
+                        <span style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase;">Kewajiban 7 Hari ke Depan:</span>
+                        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                            @foreach($financeOverview['upcoming_obligations'] as $upg)
+                                <div style="font-size: 11px; display: flex; justify-content: space-between; color: var(--text-secondary); background: rgba(255,255,255,0.02); padding: 4px 6px; border-radius: 4px;">
+                                    <span>💳 {{ $upg['name'] }} ({{ $upg['days_remaining'] == 0 ? 'Hari ini' : 'H-' . $upg['days_remaining'] }})</span>
+                                    <strong style="color: #f472b6;">Rp {{ number_format($upg['amount'], 0, ',', '.') }}</strong>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <div style="display: flex; gap: 6px;">
+                    <a href="{{ route('finance.index') }}" class="btn btn-outline btn-sm" style="flex: 1; text-align: center; text-decoration: none; justify-content: center; font-size: 11px; padding: 5px 8px;">
+                        Buka Keuangan
+                    </a>
+                </div>
+            </div>
+            @endif
+
             {{-- Overdue Alert --}}
             @if($overdueTasks->count() > 0)
             <div class="alert-card alert-overdue glass-card">

@@ -80,6 +80,21 @@
                     </svg>
                     <span>Acara</span>
                 </a>
+                <a href="{{ route('productivity.index') }}" class="nav-item {{ request()->routeIs('productivity.*') ? 'active' : '' }}" id="nav-productivity">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Produktivitas</span>
+                </a>
+                <a href="{{ route('finance.index') }}" class="nav-item {{ request()->routeIs('finance.*') ? 'active' : '' }}" id="nav-finance">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <path d="M6 12h.01M18 12h.01"></path>
+                    </svg>
+                    <span>Keuangan</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
