@@ -3257,11 +3257,39 @@ window.submitEssentialBudget = async function(e) {
 // PERSONAL FINANCE — Phase 3: Installments
 // ==========================================
 
+window.onInstTypeChange = function() {
+    const typeSelect = document.getElementById('instTypeSelect');
+    const totalGroup = document.getElementById('instTotalAmountGroup');
+    const totalInput = document.getElementById('instTotalAmountInput');
+    const notice = document.getElementById('instRecurringNotice');
+    const submitBtn = document.getElementById('btnSubmitInstallment');
+    const modalTitle = document.getElementById('installmentModalTitle');
+
+    if (!typeSelect) return;
+
+    if (typeSelect.value === 'recurring_bill') {
+        if (totalGroup) totalGroup.style.display = 'none';
+        if (totalInput) totalInput.required = false;
+        if (notice) notice.style.display = 'block';
+        if (submitBtn) submitBtn.textContent = 'Simpan Tagihan Rutin';
+        if (modalTitle) modalTitle.textContent = 'Tambah Tagihan Rutin';
+    } else {
+        if (totalGroup) totalGroup.style.display = 'block';
+        if (totalInput) totalInput.required = true;
+        if (notice) notice.style.display = 'none';
+        if (submitBtn) submitBtn.textContent = 'Simpan Cicilan';
+        if (modalTitle) modalTitle.textContent = 'Tambah Cicilan / Pinjaman';
+    }
+};
+
 window.openInstallmentModal = function() {
     const modal = document.getElementById('installmentModalOverlay');
     if (modal) {
         modal.classList.add('open', 'active');
         document.body.style.overflow = 'hidden';
+        if (typeof window.onInstTypeChange === 'function') {
+            window.onInstTypeChange();
+        }
     }
 };
 
@@ -3276,23 +3304,30 @@ window.closeInstallmentModal = function() {
 window.submitInstallment = async function(e) {
     e.preventDefault();
 
+    const type = document.getElementById('instTypeSelect')?.value || 'debt';
     const name = document.getElementById('instNameInput')?.value.trim();
     const category = document.getElementById('instCategorySelect')?.value || 'elektronik';
     const due_day = parseInt(document.getElementById('instDueDayInput')?.value || '24', 10);
     const monthly_amount = window.parseRupiah(document.getElementById('instMonthlyAmountInput')?.value);
-    const total_amount = window.parseRupiah(document.getElementById('instTotalAmountInput')?.value);
+    const total_amount = type === 'recurring_bill' ? null : window.parseRupiah(document.getElementById('instTotalAmountInput')?.value);
     const start_date = document.getElementById('instStartDateInput')?.value;
     const end_date = document.getElementById('instEndDateInput')?.value || null;
     const notes = document.getElementById('instNotesInput')?.value.trim() || null;
 
-    if (!name || isNaN(monthly_amount) || monthly_amount <= 0 || isNaN(total_amount) || total_amount <= 0) {
-        showToast('Mohon lengkapi formulir cicilan dengan benar!', 'warning');
+    if (!name || isNaN(monthly_amount) || monthly_amount <= 0) {
+        showToast('Mohon lengkapi nominal dan nama pengeluaran dengan benar!', 'warning');
+        return;
+    }
+
+    if (type === 'debt' && (isNaN(total_amount) || total_amount <= 0)) {
+        showToast('Mohon isi total plafon hutang untuk cicilan pinjaman!', 'warning');
         return;
     }
 
     try {
         const res = await apiRequest('/finance/installments', 'POST', {
             name,
+            type,
             category,
             due_day,
             monthly_amount,
@@ -3303,22 +3338,22 @@ window.submitInstallment = async function(e) {
         });
 
         if (res.success) {
-            showToast(res.message || 'Cicilan berhasil ditambahkan!', 'success');
+            showToast(res.message || (type === 'recurring_bill' ? 'Tagihan rutin berhasil ditambahkan!' : 'Cicilan berhasil ditambahkan!'), 'success');
             closeInstallmentModal();
             setTimeout(() => {
                 window.location.reload();
             }, 700);
         } else {
-            showToast(res.message || 'Gagal menyimpan cicilan.', 'error');
+            showToast(res.message || 'Gagal menyimpan data.', 'error');
         }
     } catch (err) {
         console.error('Installment save error:', err);
-        showToast('Terjadi kesalahan saat menyimpan cicilan.', 'error');
+        showToast('Terjadi kesalahan saat menyimpan data.', 'error');
     }
 };
 
 window.deleteInstallment = async function(id) {
-    if (!confirm('Apakah kamu yakin ingin menghapus data cicilan ini?')) return;
+    if (!confirm('Apakah kamu yakin ingin menghapus data ini?')) return;
 
     try {
         const res = await apiRequest(`/finance/installments/${id}`, 'DELETE');

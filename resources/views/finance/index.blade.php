@@ -116,7 +116,7 @@
             🍱 Kebutuhan Pokok (Allowance)
         </button>
         <button type="button" class="prod-tab-btn" id="tabBtnInstallments" onclick="switchFinanceTab('installments')">
-            💳 Cicilan & Kewajiban
+            💳 Cicilan & Kewajiban Rutin
         </button>
         <button type="button" class="prod-tab-btn" id="tabBtnSavings" onclick="switchFinanceTab('savings')">
             🎯 Target Tabungan
@@ -483,13 +483,13 @@
         <div class="glass-card" style="padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
             <div class="card-header-flex">
                 <div>
-                    <h3 class="card-title-sm">💳 Daftar Cicilan & Kewajiban Finansial</h3>
+                    <h3 class="card-title-sm">💳 Daftar Cicilan & Pengeluaran Rutin Bulanan</h3>
                     <p class="card-sub-sm">
-                        Mekanisme pemisahan antara <strong>Kewajiban (Obligation)</strong> dan <strong>Cadangan Dana (Reserve)</strong>. Uang yang dicadangkan tetap milik Anda di rekening kas sampai pembayaran nyata terjadi.
+                        Kelola <strong>Cicilan Pinjaman</strong> (dengan plafon lunas) maupun <strong>Pengeluaran Rutin Bulanan</strong> (WiFi, Kos, Listrik, Gym, Langganan Digital). Semua komitmen dipisahkan antara kewajiban dan cadangan kas riil.
                     </p>
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" onclick="openInstallmentModal()">
-                    + Tambah Cicilan
+                    + Tambah Cicilan / Tagihan
                 </button>
             </div>
 
@@ -497,13 +497,13 @@
                 <div class="empty-state-box">
                     <span style="font-size: 36px;">🎉</span>
                     <p style="margin: 10px 0 0 0; color: #fff; font-size: 14px; font-weight: 700;">
-                        Tidak ada kewajiban cicilan yang tercatat!
+                        Tidak ada kewajiban cicilan atau pengeluaran rutin yang tercatat!
                     </p>
                     <p style="margin: 4px 0 16px 0; color: var(--text-tertiary); font-size: 12px;">
-                        Tambahkan cicilan barang, pinjaman, atau komitmen rutin untuk mengelola pencadangan dananya.
+                        Tambahkan pengeluaran rutin bulanan (WiFi, Kos, Gym) atau cicilan kredit untuk mengelola pencadangan dananya.
                     </p>
                     <button type="button" class="btn btn-outline btn-sm" onclick="openInstallmentModal()">
-                        + Tambah Cicilan Sekarang
+                        + Tambah Komitmen Sekarang
                     </button>
                 </div>
             @else
@@ -514,22 +514,29 @@
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                                     <div>
                                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
-                                            <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(244, 114, 182, 0.15); color: #f472b6; text-transform: uppercase;">
-                                                {{ $item['category'] ?? 'Cicilan' }}
-                                            </span>
-                                            @if($item['status'] === 'paid_off')
-                                                <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(34, 197, 94, 0.18); color: #86efac;">
-                                                    ✅ Lunas Sepenuhnya
+                                            @if(($item['type'] ?? 'debt') === 'recurring_bill')
+                                                <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(168, 85, 247, 0.18); color: #c084fc;">
+                                                    🔁 Rutin Bulanan
                                                 </span>
                                             @else
-                                                <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(59, 130, 246, 0.15); color: #93c5fd;">
-                                                    Berjalan
+                                                <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(244, 114, 182, 0.15); color: #f472b6;">
+                                                    💳 Cicilan Hutang
+                                                </span>
+                                            @endif
+
+                                            <span style="font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; background: rgba(255, 255, 255, 0.06); color: var(--text-secondary); text-transform: uppercase;">
+                                                {{ ucfirst(str_replace('_', ' ', $item['category'] ?? 'Umum')) }}
+                                            </span>
+
+                                            @if(($item['type'] ?? 'debt') === 'debt' && $item['status'] === 'paid_off')
+                                                <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(34, 197, 94, 0.18); color: #86efac;">
+                                                    ✅ Lunas Sepenuhnya
                                                 </span>
                                             @endif
                                         </div>
                                         <h4 style="font-size: 16px; font-weight: 800; color: #fff; margin: 0;">{{ $item['name'] }}</h4>
                                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                                            Tagihan: <strong style="color: #f472b6;">Rp {{ number_format($item['monthly_amount'], 0, ',', '.') }}</strong> / bulan (Tgl {{ $item['due_day'] }})
+                                            Tagihan: <strong style="color: #f472b6;">Rp {{ number_format($item['monthly_amount'], 0, ',', '.') }}</strong> / bulan (Jatuh tempo: Tgl {{ $item['due_day'] }})
                                         </div>
                                     </div>
                                     <div>
@@ -553,20 +560,31 @@
                                     </div>
                                 </div>
 
-                                {{-- Progress 1: Pelunasan Total --}}
-                                <div style="margin-top: 14px; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
-                                        <span>Progres Pelunasan Total:</span>
-                                        <strong style="color: #fff;">{{ $item['progress_percent'] }}%</strong>
+                                @if(($item['type'] ?? 'debt') === 'debt')
+                                    {{-- Progress 1: Pelunasan Total Plafon (Cicilan Hutang) --}}
+                                    <div style="margin-top: 14px; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+                                            <span>Progres Pelunasan Plafon:</span>
+                                            <strong style="color: #fff;">{{ $item['progress_percent'] ?? 0 }}%</strong>
+                                        </div>
+                                        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 9999px; overflow: hidden;">
+                                            <div style="height: 100%; width: {{ $item['progress_percent'] ?? 0 }}%; background: linear-gradient(90deg, #a855f7, #ec4899); border-radius: 9999px;"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">
+                                            <span>Terbayar: Rp {{ number_format($item['total_paid'], 0, ',', '.') }}</span>
+                                            <span>Sisa: Rp {{ number_format($item['remaining_total'] ?? 0, 0, ',', '.') }}</span>
+                                        </div>
                                     </div>
-                                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 9999px; overflow: hidden;">
-                                        <div style="height: 100%; width: {{ $item['progress_percent'] }}%; background: linear-gradient(90deg, #a855f7, #ec4899); border-radius: 9999px;"></div>
+                                @else
+                                    {{-- Info Tagihan Rutin Bulanan Berkelanjutan --}}
+                                    <div style="margin-top: 14px; background: rgba(168, 85, 247, 0.05); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(168, 85, 247, 0.2); display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 16px;">🔁</span>
+                                        <div style="font-size: 11px; color: var(--text-secondary);">
+                                            <strong style="color: #e9d5ff;">Pengeluaran Rutin Berkelanjutan</strong>
+                                            <div style="color: var(--text-tertiary);">Otomatis aktif kembali tiap bulan baru tanpa batas plafon pinjaman.</div>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); margin-top: 4px;">
-                                        <span>Terbayar: Rp {{ number_format($item['total_paid'], 0, ',', '.') }}</span>
-                                        <span>Sisa: Rp {{ number_format($item['remaining_total'], 0, ',', '.') }}</span>
-                                    </div>
-                                </div>
+                                @endif
 
                                 {{-- Progress 2: Pencadangan Bulan Ini --}}
                                 <div style="margin-top: 10px; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
@@ -1277,66 +1295,90 @@
 </div>
 
 {{-- MODAL 5: Tambah Cicilan & Kewajiban Finansial --}}
+{{-- MODAL 5: Tambah Cicilan / Tagihan Rutin --}}
 <div class="modal-overlay" id="installmentModalOverlay">
     <div class="modal" id="installmentModal">
         <div class="modal-header">
-            <h2 class="modal-title">Tambah Cicilan / Kewajiban Rutin</h2>
+            <h2 class="modal-title">Tambah Cicilan / Tagihan Rutin</h2>
             <button class="modal-close" onclick="closeInstallmentModal()">&times;</button>
         </div>
         <div class="modal-body">
             <form id="installmentForm" onsubmit="submitInstallment(event)">
                 <div class="form-group">
-                    <label>Nama Cicilan / Kewajiban <span class="required">*</span></label>
-                    <input type="text" class="form-input" id="instNameInput" placeholder="Contoh: Laptop Kerja ASUS, Motor Honda Beat, WiFi Indihome" required>
+                    <label>Jenis Kewajiban Bulanan <span class="required">*</span></label>
+                    <select class="form-select" id="instTypeSelect" onchange="onInstTypeChange()" required>
+                        <option value="recurring_bill" selected>🔁 Pengeluaran Rutin Bulanan (WiFi, Kos, Listrik, Gym, Langganan Digital, dll)</option>
+                        <option value="debt">💳 Cicilan Pinjaman / Kredit (Laptop, HP, Motor, Pinjaman — memiliki batas lunas)</option>
+                    </select>
+                </div>
+
+                <div id="instRecurringNotice" style="padding: 10px 12px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 11px; color: #e9d5ff;">
+                    💡 <strong>Tagihan Rutin:</strong> Pengeluaran berkelanjutan bulanan tanpa plafon pinjaman. Nominal akan dicadangkan dan ditagihkan rutin setiap bulan sesuai tanggal jatuh tempo.
+                </div>
+
+                <div class="form-group">
+                    <label>Nama Tagihan / Cicilan <span class="required">*</span></label>
+                    <input type="text" class="form-input" id="instNameInput" placeholder="Contoh: WiFi IndiHome, Kos Kamar 12, Membership Gym, Cicilan Laptop" required>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Kategori <span class="required">*</span></label>
                         <select class="form-select" id="instCategorySelect" required>
-                            <option value="elektronik">💻 Gadget & Elektronik</option>
-                            <option value="kendaraan">🛵 Kendaraan / Transportasi</option>
-                            <option value="pinjaman">💳 Pinjaman / KPR / Paylater</option>
-                            <option value="langganan">📦 Langganan / Utilitas Rutin</option>
-                            <option value="lainnya">🏷️ Lainnya</option>
+                            <optgroup label="Pengeluaran Rutin Bulanan">
+                                <option value="wifi_internet">🌐 WiFi & Internet Rumah</option>
+                                <option value="kos_sewa">🏠 Kos / Kontrakan / Sewa</option>
+                                <option value="listrik_air">⚡ Listrik PLN & Air PDAM</option>
+                                <option value="gym_fitness">🏋️ Gym & Kebugaran</option>
+                                <option value="langganan_digital">🎬 Langganan Digital (Spotify/Netflix/SaaS)</option>
+                                <option value="pulsa_paket">📱 Pulsa & Paket Data</option>
+                                <option value="bpjs_asuransi">🏥 BPJS / Asuransi Kesehatan</option>
+                                <option value="tagihan_rutin">📦 Tagihan Rutin Lainnya</option>
+                            </optgroup>
+                            <optgroup label="Cicilan Pinjaman / Kredit">
+                                <option value="elektronik">💻 Gadget & Elektronik</option>
+                                <option value="kendaraan">🛵 Kendaraan / Motor / Mobil</option>
+                                <option value="pinjaman">💳 Pinjaman Bank / KTA / Paylater</option>
+                                <option value="lainnya">🏷️ Cicilan Lainnya</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Tanggal Jatuh Tempo Tiap Bulan (1–31) <span class="required">*</span></label>
-                        <input type="number" class="form-input" id="instDueDayInput" min="1" max="31" value="24" required>
+                        <input type="number" class="form-input" id="instDueDayInput" min="1" max="31" value="20" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Tagihan Bulanan (Rp) <span class="required">*</span></label>
-                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="instMonthlyAmountInput" placeholder="Contoh: 500.000" required>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="instMonthlyAmountInput" placeholder="Contoh: 350.000" required>
                     </div>
-                    <div class="form-group">
-                        <label>Total Plafon / Keseluruhan Nilai Pinjaman (Rp) <span class="required">*</span></label>
-                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="instTotalAmountInput" placeholder="Contoh: 6.000.000" required>
+                    <div class="form-group" id="instTotalAmountGroup" style="display: none;">
+                        <label>Total Plafon / Pinjaman (Rp) <span class="required">*</span></label>
+                        <input type="text" inputmode="numeric" class="form-input rupiah-input" id="instTotalAmountInput" placeholder="Contoh: 6.000.000">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Tanggal Mulai Cicilan <span class="required">*</span></label>
+                        <label>Tanggal Mulai Berlaku <span class="required">*</span></label>
                         <input type="date" class="form-input" id="instStartDateInput" value="{{ now()->toDateString() }}" required>
                     </div>
                     <div class="form-group">
-                        <label>Tanggal Selesai (Opsional)</label>
+                        <label>Tanggal Berakhir (Opsional)</label>
                         <input type="date" class="form-input" id="instEndDateInput">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Catatan Tambahan</label>
-                    <input type="text" class="form-input" id="instNotesInput" placeholder="No. kontrak, nomor referensi, dll...">
+                    <label>Catatan Tambahan (Opsional)</label>
+                    <input type="text" class="form-input" id="instNotesInput" placeholder="ID Pelanggan, nomor meteran, catatan paket...">
                 </div>
 
                 <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
                     <button type="button" class="btn btn-outline" onclick="closeInstallmentModal()">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan Cicilan</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitInstallment">Simpan Komitmen</button>
                 </div>
             </form>
         </div>

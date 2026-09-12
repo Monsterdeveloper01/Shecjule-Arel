@@ -68,9 +68,10 @@ class InstallmentService
             $items[] = [
                 'id' => $inst->id,
                 'name' => $inst->name,
+                'type' => $inst->type ?? 'debt',
                 'category' => $inst->category,
                 'status' => $inst->status,
-                'total_amount' => (float) $inst->total_amount,
+                'total_amount' => $inst->total_amount !== null ? (float) $inst->total_amount : null,
                 'monthly_amount' => (float) $inst->monthly_amount,
                 'due_day' => $inst->due_day,
                 'total_paid' => $inst->total_paid,
@@ -148,13 +149,15 @@ class InstallmentService
             $dateStr = $transactionDate ?: now()->toDateString();
             $d = Carbon::parse($dateStr);
 
+            $typeLabel = $installment->isRecurringBill() ? 'Tagihan Rutin' : 'Cicilan';
+
             // Record transaction in ledger
             $transaction = $this->ledgerService->recordTransaction([
                 'account_id' => $account->id,
                 'type' => 'installment_payment',
                 'amount' => $amount,
                 'transaction_date' => $dateStr,
-                'description' => "Pembayaran Cicilan: {$installment->name}",
+                'description' => "Pembayaran {$typeLabel}: {$installment->name}",
                 'installment_id' => $installment->id,
                 'notes' => $notes,
             ]);
@@ -164,9 +167,9 @@ class InstallmentService
             $account->installment_reserve = max(0.0, round((float) $account->installment_reserve - $amount, 2));
             $account->save();
 
-            // Check if overall debt is fully satisfied
+            // Check if overall debt is fully satisfied (only for debt type, never for ongoing recurring bills)
             $installment->refresh();
-            if ($installment->remaining_total <= 0.0) {
+            if ($installment->isDebt() && $installment->remaining_total !== null && $installment->remaining_total <= 0.0) {
                 $installment->update(['status' => 'paid_off']);
             }
 

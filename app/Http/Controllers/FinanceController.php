@@ -256,32 +256,48 @@ class FinanceController extends Controller
      */
     public function storeInstallment(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        $type = $request->input('type', 'debt');
+
+        $rules = [
             'name' => 'required|string|max:150',
-            'total_amount' => 'required|numeric|min:1',
+            'type' => 'nullable|in:debt,recurring_bill',
             'monthly_amount' => 'required|numeric|min:1',
             'due_day' => 'required|integer|between:1,31',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date',
             'category' => 'nullable|string|max:50',
             'notes' => 'nullable|string|max:500',
-        ]);
+        ];
+
+        if ($type === 'debt') {
+            $rules['total_amount'] = 'required|numeric|min:1';
+        } else {
+            $rules['total_amount'] = 'nullable|numeric|min:0';
+        }
+
+        $validated = $request->validate($rules);
+        $totalAmount = $type === 'debt' ? round((float) $validated['total_amount'], 2) : null;
 
         $installment = FinanceInstallment::create([
             'name' => $validated['name'],
-            'total_amount' => round((float) $validated['total_amount'], 2),
+            'type' => $type,
+            'total_amount' => $totalAmount,
             'monthly_amount' => round((float) $validated['monthly_amount'], 2),
             'due_day' => (int) $validated['due_day'],
             'start_date' => $validated['start_date'],
             'end_date' => $validated['end_date'] ?? null,
-            'category' => $validated['category'] ?? 'elektronik',
+            'category' => $validated['category'] ?? ($type === 'recurring_bill' ? 'tagihan_rutin' : 'elektronik'),
             'status' => 'active',
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        $successMessage = $type === 'recurring_bill'
+            ? 'Pengeluaran rutin bulanan berhasil ditambahkan!'
+            : 'Cicilan berhasil ditambahkan!';
+
         return response()->json([
             'success' => true,
-            'message' => 'Cicilan berhasil ditambahkan!',
+            'message' => $successMessage,
             'installment' => $installment,
         ]);
     }

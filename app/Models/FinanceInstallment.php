@@ -16,6 +16,7 @@ class FinanceInstallment extends Model
      */
     protected $fillable = [
         'name',
+        'type',
         'total_amount',
         'monthly_amount',
         'due_day',
@@ -40,6 +41,22 @@ class FinanceInstallment extends Model
             'start_date' => 'date',
             'end_date' => 'date',
         ];
+    }
+
+    /**
+     * Determine if this is a recurring monthly bill.
+     */
+    public function isRecurringBill(): bool
+    {
+        return $this->type === 'recurring_bill';
+    }
+
+    /**
+     * Determine if this is a debt / loan installment.
+     */
+    public function isDebt(): bool
+    {
+        return $this->type !== 'recurring_bill';
     }
 
     /**
@@ -76,18 +93,26 @@ class FinanceInstallment extends Model
     }
 
     /**
-     * Remaining obligation for the whole item.
+     * Remaining obligation for the whole item (null for recurring bills).
      */
-    public function getRemainingTotalAttribute(): float
+    public function getRemainingTotalAttribute(): ?float
     {
+        if ($this->isRecurringBill() || $this->total_amount === null) {
+            return null;
+        }
+
         return max(0.0, round((float) $this->total_amount - $this->total_paid, 2));
     }
 
     /**
-     * Overall payoff progress percentage (0 - 100%).
+     * Overall payoff progress percentage (null for recurring bills).
      */
-    public function getProgressPercentAttribute(): float
+    public function getProgressPercentAttribute(): ?float
     {
+        if ($this->isRecurringBill() || $this->total_amount === null) {
+            return null;
+        }
+
         $total = (float) $this->total_amount;
         if ($total <= 0) {
             return 100.0;
