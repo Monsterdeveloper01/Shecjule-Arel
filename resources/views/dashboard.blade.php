@@ -57,38 +57,41 @@
         </div>
     </div>
 
-    {{-- TODAY INTELLIGENCE HUB (V2.7) --}}
+    {{-- TODAY INTELLIGENCE HUB --}}
     @if(isset($todayIntelligence))
     <div class="intelligence-card">
         <div class="intel-header">
             <div>
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span style="font-size: 16px;">🧠</span>
-                    <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #fff;">Today Intelligence Hub</h3>
+                <div class="intel-title-row">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent);">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                    </svg>
+                    <h3 class="intel-title">Today Intelligence Hub</h3>
                     <span class="intel-badge-overload overload-{{ strtolower($todayIntelligence['overload']->level) }}">
                         Status Beban: {{ $todayIntelligence['overload']->level }}
                     </span>
                 </div>
-                <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary);">
+                <p style="margin: 4px 0 0 0; font-size: 12.5px; color: var(--text-secondary);">
                     {{ $todayIntelligence['overload']->headline }} — {{ $todayIntelligence['overload']->recommendation }}
                 </p>
             </div>
             <div>
-                <span style="font-size: 11px; color: var(--text-tertiary);">Total Waktu Luang Hari Ini:</span>
-                <div style="font-size: 14px; font-weight: 800; color: #86efac;">
-                    ⏱️ {{ $todayIntelligence['totalFreeHoursToday'] }} Jam Tersedia
+                <span style="font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;">Total Waktu Luang Hari Ini:</span>
+                <div style="font-size: 14px; font-weight: 700; color: #34d399; font-variant-numeric: tabular-nums;">
+                    {{ $todayIntelligence['totalFreeHoursToday'] }} Jam Tersedia
                 </div>
             </div>
         </div>
 
-        {{-- AI Daily Briefing (V3.5) --}}
+        {{-- AI Daily Briefing --}}
         @if(!empty($todayIntelligence['aiInsight']))
         <div class="ai-daily-briefing-box">
-            <div class="ai-briefing-glow"></div>
             <div class="ai-briefing-header">
                 <div class="ai-briefing-title">
-                    <span class="ai-sparkle-icon">✨</span>
-                    <strong>AI Daily Briefing</strong>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ai-sparkle-icon">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                    </svg>
+                    <span>AI Daily Briefing</span>
                 </div>
                 <button type="button" class="ai-open-assistant-btn" onclick="openAiModal()">
                     Tanya AI ➔
@@ -104,15 +107,16 @@
             {{-- 1. Next Up --}}
             <div class="intel-section-box">
                 <div class="intel-box-label">
-                    <span>📌 Agenda Berikutnya</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Agenda Berikutnya</span>
                 </div>
                 @if($todayIntelligence['nextUp'])
                     <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <strong style="font-size: 13px; color: #fff;">{{ $todayIntelligence['nextUp']['title'] }}</strong>
-                        <span style="font-size: 11px; color: #c7d2fe;">
-                            ⏰ {{ $todayIntelligence['nextUp']['time'] }}
+                        <strong style="font-size: 13px; color: var(--text-primary);">{{ $todayIntelligence['nextUp']['title'] }}</strong>
+                        <span style="font-size: 11.5px; color: var(--text-secondary);">
+                            {{ $todayIntelligence['nextUp']['time'] }}
                             @if($todayIntelligence['nextUp']['location'])
-                                · 📍 {{ $todayIntelligence['nextUp']['location'] }}
+                                · {{ $todayIntelligence['nextUp']['location'] }}
                             @endif
                         </span>
                         <span style="font-size: 11px; color: #f59e0b; font-weight: 600; margin-top: 2px;">
@@ -120,47 +124,49 @@
                         </span>
                     </div>
                 @else
-                    <span style="font-size: 12px; color: var(--text-tertiary);">✨ Tidak ada agenda lagi hari ini.</span>
+                    <span style="font-size: 12px; color: var(--text-tertiary);">Tidak ada agenda tersisa hari ini.</span>
                 @endif
             </div>
 
             {{-- 2. Smart Recommendation --}}
             <div class="intel-section-box">
                 <div class="intel-box-label">
-                    <span>🎯 Rekomendasi Pengerjaan Tugas</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                    <span>Rekomendasi Pengerjaan Tugas</span>
                 </div>
                 @if($todayIntelligence['recommendation'])
                     @php $rec = $todayIntelligence['recommendation']; @endphp
-                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-                            <strong style="font-size: 13px; color: #fff;">{{ $rec->task->title }}</strong>
+                            <strong style="font-size: 13px; color: var(--text-primary);">{{ $rec->task->title }}</strong>
                             <span class="risk-badge risk-{{ strtolower($rec->task->risk_level ?? 'aman') }}">{{ $rec->task->risk_level }}</span>
                         </div>
-                        <span style="font-size: 11px; color: #86efac;">
+                        <span style="font-size: 11px; color: #34d399; font-weight: 500;">
                             Slot: {{ $rec->slot->formattedRange }} ({{ $rec->slot->formattedDuration }})
                         </span>
                         <span style="font-size: 11px; color: var(--text-secondary);">
-                            💡 {{ $rec->reason }}
+                            {{ $rec->reason }}
                         </span>
                         <button class="recommendation-action-btn" onclick="editTask({{ $rec->task->id }}, {{ json_encode($rec->task) }})">
                             Mulai Kerjakan ({{ $rec->recommendedDurationMinutes }} mnt) ➔
                         </button>
                     </div>
                 @else
-                    <span style="font-size: 12px; color: var(--text-tertiary);">Semua tugas hari ini terkendali dengan baik 🎉</span>
+                    <span style="font-size: 12px; color: var(--text-tertiary);">Semua tugas hari ini terkendali dengan baik.</span>
                 @endif
             </div>
 
             {{-- 3. Free Slots --}}
             <div class="intel-section-box">
                 <div class="intel-box-label">
-                    <span>⏳ Celah Waktu Kosong Hari Ini</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Celah Waktu Kosong Hari Ini</span>
                 </div>
                 @if($todayIntelligence['freeSlots']->count() > 0)
                     <div class="free-slot-pills">
                         @foreach($todayIntelligence['freeSlots']->take(4) as $fSlot)
                             <span class="free-slot-pill {{ $fSlot->isAvailableNow ? 'slot-now' : '' }}" title="{{ $fSlot->formattedRange }}">
-                                @if($fSlot->isAvailableNow) 🟢 Sekarang: @endif
+                                @if($fSlot->isAvailableNow) Sekarang: @endif
                                 {{ $fSlot->formattedRange }} ({{ $fSlot->formattedDuration }})
                             </span>
                         @endforeach
@@ -198,53 +204,47 @@
         {{-- Today Sidebar --}}
         <div class="today-sidebar">
             {{-- Today's greeting --}}
-            <div class="greeting-card glass-card">
-                <h2 class="greeting-text">Hai, {{ session('user_name', 'User') }}! 👋</h2>
+            <div class="greeting-card">
+                <h2 class="greeting-text">Hai, {{ session('user_name', 'User') }}!</h2>
                 <p class="greeting-date">{{ now()->translatedFormat('l, d F Y') }}</p>
             </div>
 
-            {{-- Personal OS Quick Widget (V4) --}}
-            <div class="glass-card" style="padding: 16px; border-radius: var(--radius-lg); background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%); border: 1px solid rgba(255, 255, 255, 0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 15px;">⚡</span>
-                        <strong style="font-size: 13px; color: #fff;">Personal OS Hub</strong>
-                    </div>
-                    <a href="{{ route('productivity.index') }}" style="font-size: 11px; color: #fca5a5; text-decoration: none; font-weight: 700;">Buka OS ➔</a>
+            {{-- Personal OS Quick Widget --}}
+            <div class="dashboard-widget-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 13px; color: var(--text-primary); font-weight: 600;">Personal OS Hub</strong>
+                    <a href="{{ route('productivity.index') }}" style="font-size: 11px; color: var(--text-secondary); text-decoration: none; font-weight: 600;">Buka OS ➔</a>
                 </div>
-                <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
-                    Lacak rutinitas, gym selang-seling (rest day aman), dan fokus kerja mendalam.
+                <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
+                    Lacak rutinitas harian, status rest day gym, dan sesi fokus kerja mendalam.
                 </p>
                 <div style="display: flex; gap: 8px;">
                     <a href="{{ route('productivity.index') }}" class="btn btn-primary btn-sm" style="flex: 1; text-align: center; text-decoration: none; justify-content: center; font-size: 11px; padding: 6px 12px;">
-                        🎯 Mulai Sesi Fokus
+                        Mulai Sesi Fokus
                     </a>
                 </div>
             </div>
 
-            {{-- Personal Finance Today & Safe-to-Spend Widget (Phase 5) --}}
+            {{-- Personal Finance Today & Safe-to-Spend Widget --}}
             @if(isset($financeOverview))
-            <div class="glass-card" style="padding: 16px; border-radius: var(--radius-lg); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(56, 189, 248, 0.08) 100%); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="dashboard-widget-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 15px;">💰</span>
-                        <strong style="font-size: 13px; color: #fff;">Finance & Safe-to-Spend</strong>
-                    </div>
-                    <a href="{{ route('finance.index') }}" style="font-size: 11px; color: #86efac; text-decoration: none; font-weight: 700;">Buku Kas ➔</a>
+                    <strong style="font-size: 13px; color: var(--text-primary); font-weight: 600;">Finance & Safe-to-Spend</strong>
+                    <a href="{{ route('finance.index') }}" style="font-size: 11px; color: var(--text-secondary); text-decoration: none; font-weight: 600;">Buku Kas ➔</a>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; padding: 8px 10px; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.04);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
                     <div>
-                        <span style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase;">Safe to Spend Hari Ini:</span>
-                        <div style="font-size: 17px; font-weight: 800; color: #86efac; margin-top: 2px;">
+                        <span style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;">Safe to Spend Hari Ini:</span>
+                        <div style="font-size: 16px; font-weight: 700; color: #34d399; margin-top: 2px; font-variant-numeric: tabular-nums;">
                             Rp {{ number_format($financeOverview['safe_to_spend_remaining'], 0, ',', '.') }}
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <span style="font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: {{ $financeOverview['status_color'] }}22; color: {{ $financeOverview['status_color'] }};">
+                        <span style="font-size: 9.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: {{ $financeOverview['status_color'] }}18; color: {{ $financeOverview['status_color'] }};">
                             {{ $financeOverview['status_label'] }}
                         </span>
-                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 3px;">
+                        <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px; font-variant-numeric: tabular-nums;">
                             Bebas: Rp {{ number_format($financeOverview['available_balance'], 0, ',', '.') }}
                         </div>
                     </div>
@@ -252,12 +252,12 @@
 
                 @if(!empty($financeOverview['upcoming_obligations']))
                     <div style="margin-bottom: 8px;">
-                        <span style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase;">Kewajiban 7 Hari ke Depan:</span>
+                        <span style="font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;">Kewajiban 7 Hari ke Depan:</span>
                         <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
                             @foreach($financeOverview['upcoming_obligations'] as $upg)
-                                <div style="font-size: 11px; display: flex; justify-content: space-between; color: var(--text-secondary); background: rgba(255,255,255,0.02); padding: 4px 6px; border-radius: 4px;">
-                                    <span>💳 {{ $upg['name'] }} ({{ $upg['days_remaining'] == 0 ? 'Hari ini' : 'H-' . $upg['days_remaining'] }})</span>
-                                    <strong style="color: #f472b6;">Rp {{ number_format($upg['amount'], 0, ',', '.') }}</strong>
+                                <div style="font-size: 11px; display: flex; justify-content: space-between; color: var(--text-secondary); background: var(--bg-secondary); padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                                    <span>{{ $upg['name'] }} ({{ $upg['days_remaining'] == 0 ? 'Hari ini' : 'H-' . $upg['days_remaining'] }})</span>
+                                    <strong style="color: var(--text-primary); font-variant-numeric: tabular-nums;">Rp {{ number_format($upg['amount'], 0, ',', '.') }}</strong>
                                 </div>
                             @endforeach
                         </div>
@@ -357,10 +357,10 @@
             @endif
 
             {{-- Today Course Schedules --}}
-            <div class="today-section glass-card schedule-today-card">
+            <div class="today-section schedule-today-card">
                 <div class="section-title-wrap" style="display: flex; justify-content: space-between; align-items: center;">
                     <h3 class="section-title" style="margin-bottom: 0;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                             <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -368,35 +368,35 @@
                         </svg>
                         Kuliah Hari Ini ({{ $todaySchedules->count() }})
                     </h3>
-                    <a href="{{ route('schedules.index') }}" class="section-link-more" style="font-size: 12px; color: #ef4444; text-decoration: none; font-weight: 600;">Lihat Matrix ➔</a>
+                    <a href="{{ route('schedules.index') }}" class="section-link-more" style="font-size: 11px; color: var(--text-secondary); text-decoration: none; font-weight: 500;">Lihat Matrix ➔</a>
                 </div>
 
                 @if($todaySchedules->count() > 0)
-                <div class="schedule-list-mini" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                <div class="schedule-list-mini" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
                     @foreach($todaySchedules as $cs)
-                    <div class="schedule-item-mini theme-{{ $cs->color_tag ?? 'red' }} {{ $cs->is_ongoing_now ? 'mini-ongoing' : '' }}" style="background: var(--bg-tertiary); padding: 10px 12px; border-radius: var(--radius-md); border-left: 3px solid #ef4444; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div class="schedule-item-mini theme-{{ $cs->color_tag ?? 'red' }} {{ $cs->is_ongoing_now ? 'mini-ongoing' : '' }}" style="background: var(--bg-secondary); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); border-left: 3px solid var(--accent); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                         <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <strong style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">{{ $cs->course_name }}</strong>
+                                <strong style="font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; color: var(--text-primary);">{{ $cs->course_name }}</strong>
                                 @if($cs->is_ongoing_now)
-                                    <span style="background: #ef4444; color: white; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; animation: pulse 2s infinite;">LIVE</span>
+                                    <span style="background: var(--accent); color: white; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px;">LIVE</span>
                                 @endif
                             </div>
-                            <div style="font-size: 11px; color: var(--text-secondary); display: flex; gap: 8px;">
-                                <span>⏰ {{ $cs->start_time_formatted }} - {{ $cs->end_time_formatted }}</span>
+                            <div style="font-size: 11px; color: var(--text-tertiary); display: flex; gap: 8px;">
+                                <span>{{ $cs->start_time_formatted }} - {{ $cs->end_time_formatted }}</span>
                                 @if($cs->room)
-                                    <span>📍 {{ $cs->room }}</span>
+                                    <span>· R. {{ $cs->room }}</span>
                                 @endif
                             </div>
                         </div>
                         @if($cs->meeting_link)
-                            <a href="{{ $cs->meeting_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link-action" style="padding: 4px 8px; font-size: 11px;" title="Buka Link Kuliah">Zoom</a>
+                            <a href="{{ $cs->meeting_link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link-action" style="padding: 3px 8px; font-size: 11px;" title="Buka Link Kuliah">Link</a>
                         @endif
                     </div>
                     @endforeach
                 </div>
                 @else
-                <p class="empty-mini" style="margin-top: 10px;">✨ Tidak ada jadwal kuliah hari ini</p>
+                <p class="empty-mini" style="margin-top: 10px; font-size: 12px; color: var(--text-tertiary);">Tidak ada jadwal kuliah hari ini</p>
                 @endif
             </div>
 

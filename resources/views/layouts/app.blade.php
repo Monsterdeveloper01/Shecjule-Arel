@@ -132,7 +132,7 @@
                 <div class="top-bar-right">
                     <button class="topbar-ai-btn" id="topbarAiBtn" onclick="openAiModal()" title="Asisten Perencana Pintar AI" aria-label="AI Assistant">
                         <span class="ai-sparkle-dot"></span>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
                         </svg>
                         <span>AI Assistant</span>
@@ -170,7 +170,11 @@
         <div class="modal ai-modal-window" id="aiModal">
             <div class="ai-modal-header">
                 <div class="ai-modal-header-left">
-                    <div class="ai-avatar-badge">✨</div>
+                    <div class="ai-avatar-badge">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                    </div>
                     <div>
                         <h2 class="ai-modal-heading">Asisten AI Perencana</h2>
                         <p class="ai-modal-subheading">Suara, bahasa alami, screenshot silabus & pecah tugas</p>
@@ -388,7 +392,9 @@
         </button>
         <div class="fab-menu" id="fabMenu">
             <button class="fab-item fab-item-ai" data-action="ai-assistant" id="fabAiAssistant" onclick="openAiModal()">
-                <span style="font-size: 16px;">✨</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                </svg>
                 <span>AI Assistant</span>
             </button>
             <button class="fab-item" data-action="add-task" id="fabAddTask">
