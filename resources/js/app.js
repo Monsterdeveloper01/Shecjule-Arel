@@ -274,8 +274,23 @@ function initModal() {
         if (e.target === overlay) closeModal();
     });
 
+    // Global listener: clicking on backdrop of any modal overlay closes it
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('modal-overlay')) {
+            e.target.classList.remove('open', 'active');
+            document.body.style.overflow = '';
+        }
+    });
+
+    // Global listener: Escape key closes all open modals
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            closeModal();
+            document.querySelectorAll('.modal-overlay.open, .modal-overlay.active').forEach(m => {
+                m.classList.remove('open', 'active');
+            });
+            document.body.style.overflow = '';
+        }
     });
 }
 
@@ -2704,12 +2719,18 @@ window.toggleHabitCheckin = async function(habitId, btnElement) {
 
 window.openAddHabitModal = function() {
     const modal = document.getElementById('addHabitModalOverlay');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeAddHabitModal = function() {
     const modal = document.getElementById('addHabitModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitNewHabit = async function(e) {
@@ -2793,12 +2814,18 @@ window.openTransactionModal = function(defaultType = 'expense') {
         typeSelect.value = defaultType;
         onTxTypeChange();
     }
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeTransactionModal = function() {
     const modal = document.getElementById('transactionModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.onTxTypeChange = function() {
@@ -2895,12 +2922,18 @@ window.deleteTransaction = async function(transactionId) {
 
 window.openAccountModal = function() {
     const modal = document.getElementById('accountModalOverlay');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeAccountModal = function() {
     const modal = document.getElementById('accountModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitAccount = async function(e) {
@@ -2962,12 +2995,18 @@ window.switchFinanceTab = function(tabName) {
 
 window.openIncomeScheduleModal = function() {
     const modal = document.getElementById('incomeScheduleModalOverlay');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeIncomeScheduleModal = function() {
     const modal = document.getElementById('incomeScheduleModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitIncomeSchedule = async function(e) {
@@ -3006,12 +3045,18 @@ window.submitIncomeSchedule = async function(e) {
 
 window.openOverrideModal = function() {
     const modal = document.getElementById('overrideModalOverlay');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeOverrideModal = function() {
     const modal = document.getElementById('overrideModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitOverride = async function(e) {
@@ -3114,12 +3159,18 @@ window.submitEssentialBudget = async function(e) {
 
 window.openInstallmentModal = function() {
     const modal = document.getElementById('installmentModalOverlay');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeInstallmentModal = function() {
     const modal = document.getElementById('installmentModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitInstallment = async function(e) {
@@ -3195,12 +3246,18 @@ window.openReserveModal = function(id, name, remainingObligation) {
     if (title) title.textContent = `Cicilan: ${name} (Sisa Perlu Dicadangkan: Rp ${Number(remainingObligation).toLocaleString('id-ID')})`;
     if (amountInput) amountInput.value = remainingObligation > 0 ? remainingObligation : '';
 
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeReserveModal = function() {
     const modal = document.getElementById('reserveModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitReserve = async function(e) {
@@ -3248,12 +3305,18 @@ window.openPayInstallmentModal = function(id, name, monthlyAmount) {
     if (title) title.textContent = `Tagihan: ${name} (Nominal: Rp ${Number(monthlyAmount).toLocaleString('id-ID')})`;
     if (amountInput) amountInput.value = monthlyAmount;
 
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closePayInstallmentModal = function() {
     const modal = document.getElementById('payInstallmentModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitPayInstallment = async function(e) {
@@ -3299,12 +3362,18 @@ window.submitPayInstallment = async function(e) {
 
 window.openSavingsGoalModal = function() {
     const modal = document.getElementById('savingsGoalModalOverlay');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeSavingsGoalModal = function() {
     const modal = document.getElementById('savingsGoalModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.onGoalTypeChange = function() {
@@ -3398,12 +3467,18 @@ window.openSaveFundsModal = function(id, name, remainingAmount) {
     if (title) title.textContent = `Target: ${name} (Sisa Menuju Target: Rp ${Number(remainingAmount).toLocaleString('id-ID')})`;
     if (amountInput) amountInput.value = '';
 
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeSaveFundsModal = function() {
     const modal = document.getElementById('saveFundsModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitSaveFunds = async function(e) {
@@ -3456,12 +3531,18 @@ window.openWithdrawSavingsModal = function(id, name, currentAmount) {
         amountInput.max = currentAmount;
     }
 
-    if (modal) modal.classList.add('active');
+    if (modal) {
+        modal.classList.add('open', 'active');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.closeWithdrawSavingsModal = function() {
     const modal = document.getElementById('withdrawSavingsModalOverlay');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('open', 'active');
+        document.body.style.overflow = '';
+    }
 };
 
 window.submitWithdrawSavings = async function(e) {
